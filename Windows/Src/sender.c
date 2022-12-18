@@ -32,7 +32,8 @@ int main (int argc, char* argv[])
     }
 
     //
-    int CurrentPacket = 0; 
+    int currentPacket = 0; 
+    int totalPacketCount = 0;
     int sockfd;
     int sendlen;
     char sendbuf[BUFFERSIZE];
@@ -93,6 +94,16 @@ int main (int argc, char* argv[])
    
         //TODO: Concatenate the line and the checksum and send the packet
         unsigned char packet[BUFFERSIZE];
+        //packet = number + line + checksum
+        
+        /*Intended functionality outline:
+        * 1. Send 1st packet
+        * 2. Await acknowledgement (n Seconds)
+        * 3.1 On positive acknowledgement: reset timer and send 2nd packet and so on
+        * 3.2 On negative/no acknowledgement: Resend 1st packet, as long as timer has not expired, else abort.
+        * */
+
+        //Temp solution: only send text line without addiotional information like number, checksum
         int sendlen = strlen(line);
 
         //Send line, length
