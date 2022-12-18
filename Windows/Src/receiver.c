@@ -28,6 +28,9 @@ int main (int argc, char* argv[])
         return (-1);
     }   
 
+    int currentPacket = 0;
+    int awaitedPacket = 0;
+    int totalPacketCount = 0;
     int sockfd, newsockfd;
     int clielen, recvlen;
     char recvbuf[BUFFERSIZE];
@@ -87,9 +90,11 @@ int main (int argc, char* argv[])
 
         if (recvlen != 0)
         {
-            //Write received line to file
+            //Print status and write received line to file
             printf("Received: %s\n", recvbuf);
             fputs((char*)recvbuf, outfile);
+
+            totalPacketCount++;
         }
     }while(recvlen != 0);
 
