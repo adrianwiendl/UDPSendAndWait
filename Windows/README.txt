@@ -10,4 +10,4 @@ Compiling programs:
 Usage:
 - Navigate two terminals to directory
 - Start receiver first: receiver.exe ["..\File\out.txt"] [55555]
-- Start sender second:  sender.exe ["..File\in.txt"] [55555] ["127.0.0.1"]
+- Start sender second:  sender.exe ["..File\in.txt"] [55555] ["::1"]
