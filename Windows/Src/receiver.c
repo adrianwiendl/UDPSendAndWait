@@ -33,20 +33,20 @@ int main (int argc, char* argv[])
     int sockfd, newsockfd;
     int clielen, recvlen;
     char recvbuf[BUFFERSIZE];
-    struct sockaddr_in saddr, caddr;
-    int port = atoi(argv[2]);
+    struct sockaddr_in6 saddr, caddr;
+    unsigned short port = atoi(argv[2]);
     char* output_file = argv[1];
 
-    if ((sockfd = socket (AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((sockfd = socket (AF_INET6, SOCK_STREAM, 0)) < 0)
     {
         perror("Error creating socket");
         return (-1);
     }
 
     bzero ((char* ) &saddr, sizeof(saddr));
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = htonl (INADDR_ANY);
-    saddr.sin_port = htons(port);
+    saddr.sin6_family = AF_INET6;
+    saddr.sin6_addr = in6addr_any;
+    saddr.sin6_port = htons(port);
 
     //Bind socket to port
     if (bind(sockfd, (struct sockaddr* ) &saddr, sizeof(saddr)) < 0)

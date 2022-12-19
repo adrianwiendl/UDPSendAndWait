@@ -44,9 +44,9 @@ int main (int argc, char* argv[])
 
     //Parse passed command-line arguemnts
     char* input_file = argv[1];
-    int port = atoi(argv[2]);
+    unsigned short port = atoi(argv[2]);
     char* server = argv[3];
-    
+
     //
     char line[BUFFERSIZE];
     char recvbuf[BUFFERSIZE];
@@ -54,9 +54,9 @@ int main (int argc, char* argv[])
     int sendlen;
     
     //
-    struct packet       packetToSend;
-    struct sockaddr_in  saddr, caddr;
-    struct timeval      timeout;
+    struct packet        packetToSend;
+    struct sockaddr_in6  saddr, caddr;
+    struct timeval       timeout;
 
     //
     char* receivedAcknowledgement;
@@ -65,7 +65,7 @@ int main (int argc, char* argv[])
     timeout.tv_sec = WAITTIME;
     
     //Open socket
-    if ((sockfd = socket (AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((sockfd = socket (AF_INET6, SOCK_STREAM, 0)) < 0)
     {
         //Error opening socket
         printf("Error opening socket. Error Code: %d",WSAGetLastError());
@@ -80,14 +80,15 @@ int main (int argc, char* argv[])
 
     //Parse IP-Address and port
     bzero ((char* ) &saddr, sizeof(saddr));
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = inet_addr (server);
-    saddr.sin_port = htons(port);
-
+    saddr.sin6_family = AF_INET6;
+    //saddr.sin6_addr.s6_addr = inet_addr(server);
+    inet_pton(AF_INET6, server,&saddr.sin6_addr);
+    saddr.sin6_port = htons(port);
 
 
     //Print Confirmation for user
-    printf("Sending %s (file) to %u (IP) on %u (port)\n", input_file, saddr.sin_addr.s_addr, saddr.sin_port);
+    char buf[BUFFERSIZE];
+    printf("Sending %s (file) to %s (IP) on %d (port)\n", input_file, inet_ntop(AF_INET6,&saddr.sin6_addr,buf,sizeof(buf)), ntohs(saddr.sin6_port));
 
     //Open the input file for reading
     FILE *infile = fopen(input_file, "r");
