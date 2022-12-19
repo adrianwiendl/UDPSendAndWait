@@ -5,12 +5,13 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include "packetStruct.h"
+#include <time.h>
+#include "checksum.h"
 
 #define WAITTIME 5 //seconds to wait for acknowledgement
-#define BUFFERSIZE 1024
-//Windows implementation of bzero() function. Thanks to Romain Hippeau on Stackoverflow!
-//https://stackoverflow.com/a/3492670
-#define bzero(b,len) (memset((b), '\0', (len)), (void) 0)
+#define MAXRETRIES 6
+
 
 
 int main (int argc, char* argv[])
@@ -31,17 +32,38 @@ int main (int argc, char* argv[])
         return (-1);
     }
 
-    //
-    int currentPacket = 0; 
-    int totalPacketCount = 0;
-    int sockfd;
-    int sendlen;
-    char sendbuf[BUFFERSIZE];
-    struct sockaddr_in saddr;
-    char* server = argv[3];
-    int port = atoi(argv[2]);
-    char* input_file = argv[1];
+    //Variables for sequencing
+    int currentPacket       = 0; 
+    int totalPacketCount    = 0;
+    int packetRetries       = 0;
 
+    //
+    int sockfd;
+    char sendPacketBuffer[BUFFERSIZE];
+    
+
+    //Parse passed command-line arguemnts
+    char* input_file = argv[1];
+    int port = atoi(argv[2]);
+    char* server = argv[3];
+    
+    //
+    char line[BUFFERSIZE];
+    char recvbuf[BUFFERSIZE];
+    int checksum;
+    int sendlen;
+    
+    //
+    struct packet       packetToSend;
+    struct sockaddr_in  saddr, caddr;
+    struct timeval      timeout;
+
+    //
+    char* receivedAcknowledgement;
+
+    //Timeout for waiting on acknowledgement
+    timeout.tv_sec = WAITTIME;
+    
     //Open socket
     if ((sockfd = socket (AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -50,12 +72,19 @@ int main (int argc, char* argv[])
         WSACleanup();
         return (-1);
     }
+    
+    //
+    struct fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
 
     //Parse IP-Address and port
     bzero ((char* ) &saddr, sizeof(saddr));
     saddr.sin_family = AF_INET;
     saddr.sin_addr.s_addr = inet_addr (server);
     saddr.sin_port = htons(port);
+
+
 
     //Print Confirmation for user
     printf("Sending %s (file) to %u (IP) on %u (port)\n", input_file, saddr.sin_addr.s_addr, saddr.sin_port);
@@ -81,44 +110,134 @@ int main (int argc, char* argv[])
         WSACleanup();
         return (-1);
     }
+    else
+    {
+        printf("Successfully connected to server.\n");
+    }
+
+
 
     //Read and send the file line by line
-    char line[BUFFERSIZE];
     while (fgets(line, BUFFERSIZE, infile)) 
     {
-        //Calculate the checksum for the line
-        //int checksum = generateChecksum();
-        //Print line + checksum being sent
-        //printf("Sending: \"%s\" w/ Checksum: %d\n",line, checksum);
-        printf("Sending: %s \n",line);
-   
-        //TODO: Concatenate the line and the checksum and send the packet
-        unsigned char packet[BUFFERSIZE];
-        //packet = number + line + checksum
-        
         /*Intended functionality outline:
         * 1. Send 1st packet
-        * 2. Await acknowledgement (n Seconds)
+        * 2. Await acknowledgement (WAITTIME Seconds)
         * 3.1 On positive acknowledgement: reset timer and send 2nd packet and so on
         * 3.2 On negative/no acknowledgement: Resend 1st packet, as long as timer has not expired, else abort.
         * */
+       
 
-        //Temp solution: only send text line without addiotional information like number, checksum
-        int sendlen = strlen(line);
+        
+        //Calculate the checksum for the line
+        long checksum = generateChecksum(line, strlen(line));
+        //Print line + checksum being sent
+        printf("Sending: \"%s\" w/ Checksum: %ld\n",line, checksum);
+        //printf("Sending: %s \n",line);
+        //Temp solution: checksum is always 5
+        //checksum = 5;
+        
+        //Prepare packet
+        strcpy(packetToSend.textData, line);
+        packetToSend.seqNr = currentPacket;
+        packetToSend.checksum = checksum;
 
-        //Send line, length
-        if (send (sockfd, line, strlen(line), 0) != sendlen)
+
+ 
+        //char sendPacketSerialized[BUFFERSIZE];
+        
+        //Zero serialized packet for each new send operation
+        //bzero(sendPacketSerialized, sizeof(sendPacketSerialized));
+        
+        //Serialize packet - UNNECCESSARY
+        // strcat(sendPacketSerialized,packetToSend.textData);
+        // strcat(sendPacketSerialized,itoa(packetToSend.seqNr,sendPacketBuffer,10));
+        // strcat(sendPacketSerialized,itoa(packetToSend.checksum,sendPacketBuffer,10));
+        //sendlen = strlen(sendPacketSerialized);
+        //printf("packet  :%s\n",sendPacketSerialized);
+
+        sendlen = sizeof(struct packet);
+        //Run loop to send
+        while (TRUE)
         {
-            //Error on sending
-            printf("Error sending. Error Code: %d",WSAGetLastError());
-            fclose(infile);
-            closesocket(sockfd);
-            WSACleanup();
-            return (-1);
+            //if (send(sockfd, sendPacketSerialized, sendlen, 0) != sendlen)
+            if (send(sockfd, (unsigned char* ) &packetToSend, sendlen, 0) != sendlen)
+            {
+                //Error on sending
+                printf("Error sending. Error Code: %d",WSAGetLastError());
+                fclose(infile);
+                closesocket(sockfd);
+                WSACleanup();
+                return (-1);
+            }
+            
+            //Set socket to non-blocking mode
+            u_long iMode = 1;
+            ioctlsocket(sockfd, FIONBIO, &iMode);
+            
+            //Listen on socket for acknowledgement for WAITTIME seconds
+            listen (sockfd, 5);
+            int res = select(sockfd + 1, &fds, NULL, NULL, &timeout);
+            printf("Res received = %d\n", res);
+
+            char* receivedAcknowledgement = "";
+            
+            if (res == 1 && packetRetries < MAXRETRIES)
+            {
+                //Answer received. 
+                int recvlen = recv(sockfd, receivedAcknowledgement, sizeof(receivedAcknowledgement), 0);
+                if(recvlen < 0)
+                {
+                    printf("Error receiving. Error Code: %d",WSAGetLastError());
+                    closesocket(sockfd);
+                    return (-1);
+                }
+                receivedAcknowledgement[recvlen]=0;
+                //printf("Received acknowledgement \'%s\' from Server.\n",receivedAcknowledgement);
+                
+                //Check acknowledgement for correctness
+                if(strcmp(receivedAcknowledgement,ACKNOWLEDGEMENT) == 0)
+                {
+                    //Received correct acknowledgement
+                    //Break from current loop to send next packet
+                    puts("----------Received acknowledgement. Sending next packet.----------");
+                    packetRetries = 0;
+                    currentPacket++;
+                    break;
+                }
+                else
+                {
+                    //Incorrect acknowledgement
+                    //resend last packet
+                    puts("----------Incorrect acknowledgement. Resending last packet.----------");
+                    packetRetries++;
+                    continue;
+                }
+            }
+            else if (res == 0 && packetRetries < MAXRETRIES)
+            {
+                //Timeout
+                //Resend
+                printf("----------No Acknowledgement received after %d seconds. Resending last packet.----------\n",WAITTIME);
+                packetRetries++;
+                continue;
+            }
+            else if (packetRetries == MAXRETRIES)
+            {
+                //Too many retries
+                //Close connection.
+                printf("Too many failed send attempts. Aborting.");
+                break;
+            }
+            else if(res == -1)
+            {
+                printf("Error on select(). Error code: %d\n",WSAGetLastError());
+            }
         }
     }
 
     //Close the input file and the UDP socket
+    //Cleanup
     printf("File sent. Shutting down connection.\n");
     fclose(infile);
     closesocket(sockfd);
@@ -127,32 +246,3 @@ int main (int argc, char* argv[])
     return 0;
 }
 
-// int generateChecksum()
-// {
-//     /* Compute Internet Checksum for "count" bytes
-//     *  beginning at location "addr".
-//     *  Taken from https://www.rfc-editor.org/rfc/rfc1071#section-4
-//     *  as linked in the task.
-//     */
-//     int count = 0/*TODO*/;
-//     int checksum;
-
-//     register long sum = 0;
-//     while( count > 1 )  {
-//         /*  This is the inner loop */
-//             sum += * (unsigned short) addr++;
-//             count -= 2;
-//     }
-
-//         /*  Add left-over byte, if any */
-//     if( count > 0 )
-//             sum += * (unsigned char *) addr;
-
-//         /*  Fold 32-bit sum to 16 bits */
-//     while (sum>>16)
-//         sum = (sum & 0xffff) + (sum >> 16);
-
-//     checksum = ~sum;
-
-//     return checksum;
-// }

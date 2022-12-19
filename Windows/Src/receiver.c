@@ -5,9 +5,9 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include "packetStruct.h"
+#include "checksum.h"
 
-#define BUFFERSIZE 1024
-#define bzero(b,len) (memset((b), '\0', (len)), (void) 0)
 
 int main (int argc, char* argv[])
 {
@@ -18,8 +18,6 @@ int main (int argc, char* argv[])
     }
 
      WSADATA wsaData;
-
-
     //Initialize the socket API with the version of the
     //Winsock specification that we want to use
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -27,10 +25,11 @@ int main (int argc, char* argv[])
         perror("Error initializing the socket API");
         return (-1);
     }   
-
+    //Variables for sequencing
     int currentPacket = 0;
-    int awaitedPacket = 0;
+    int expectedPacket = 0;
     int totalPacketCount = 0;
+
     int sockfd, newsockfd;
     int clielen, recvlen;
     char recvbuf[BUFFERSIZE];
@@ -71,14 +70,18 @@ int main (int argc, char* argv[])
     newsockfd = accept (sockfd, (struct sockaddr*) &caddr, &clielen);
     if (newsockfd < 0)
     {
-        perror("Error accepting");
+        printf("Error accepting connection. Error Code: %d",WSAGetLastError());
         return (-1);
     }
-
+    struct packet receivedPacket;
+    char receivedPacketSerialized[BUFFERSIZE];
     //Receives files as long as sender has not shut down.
     do
     {
-        recvlen = recv(newsockfd, recvbuf, BUFFERSIZE, 0);
+        //recvlen = recv(newsockfd, recvbuf, BUFFERSIZE, 0);
+        //recvlen = recv(newsockfd, receivedPacketSerialized, BUFFERSIZE, 0);
+        //receivedPacketSerialized[recvlen] = 0;
+        recvlen = recv(newsockfd, (unsigned char* )&receivedPacket, sizeof(struct packet), 0);
         if(recvlen < 0)
         {
             printf("Error receiving. Error Code: %d",WSAGetLastError());
@@ -86,15 +89,47 @@ int main (int argc, char* argv[])
             closesocket(newsockfd);
             return (-1);
         }
-        recvbuf[recvlen] = 0;
-
+        
         if (recvlen != 0)
         {
-            //Print status and write received line to file
-            printf("Received: %s\n", recvbuf);
-            fputs((char*)recvbuf, outfile);
-
-            totalPacketCount++;
+            //Print status
+            printf("Received text %s of packet %d w/ checksum %d\n",
+                                            receivedPacket.textData,
+                                            receivedPacket.seqNr,
+                                            receivedPacket.checksum);
+            if (receivedPacket.seqNr == expectedPacket)
+            {
+                //Correct sequence
+                //Check checksum
+                int calculatedChecksum = generateChecksum(receivedPacket.textData, strlen(receivedPacket.textData));
+                printf("Calculated checksum: %ld\n",calculatedChecksum);
+                if (receivedPacket.checksum == calculatedChecksum)
+                {
+                    //Correct checksum
+                    //Send positive acknowledgement
+                    if((send(newsockfd, ACKNOWLEDGEMENT, strlen(ACKNOWLEDGEMENT),0)) != strlen(ACKNOWLEDGEMENT))
+                    {
+                        //Error sending acknowledgement. Break.
+                        printf("Error Sending Acknowledgment. Error Code: %d\n",WSAGetLastError());
+                        //Unsure how to proceed here. Resend acknowledgement? Wait?
+                        break;
+                    }
+                    else
+                    {
+                        //Acknowledgement sent
+                        printf("Sent acknowledgement\n");
+                        //Save received text to file
+                        //Await next packet
+                        fputs(receivedPacket.textData, outfile);
+                        expectedPacket++;
+                    }
+                }
+                else
+                {
+                    //Wrong checksum. Do not send acknowledgement.
+                    puts("Received checksum does not match calculated checksum. Awaiting resend.");
+                }
+            }
         }
     }while(recvlen != 0);
 
