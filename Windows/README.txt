@@ -1,6 +1,8 @@
 Compiling programs: 
 - Must be compiled with lws2_32 flag
 -- gcc: 
+--- Attention: With the addition of inet_pton() and inet_ntop() to the source code
+    gcc no longer works to compile the program.
 --- gcc -o ..\Exe\sender sender.c -lws2_32
 --- gcc -o ..\Exe\receiver receiver.c -lws2_32
 -- MSVC: 
