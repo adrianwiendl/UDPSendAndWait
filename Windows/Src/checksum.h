@@ -4,9 +4,9 @@
     *  as linked in the task.
     */
 #define BUFFERSIZE 1024
-long generateChecksum(char addr[BUFFERSIZE], int count)
+unsigned short generateChecksum(char addr[BUFFERSIZE], int count)
 {
-    register long checksum;
+    register unsigned short checksum;
 
     register long sum = 0;
     while( count > 1 )  {
