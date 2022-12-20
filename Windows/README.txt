@@ -12,4 +12,4 @@ Compiling programs:
 Usage:
 - Navigate two terminals to directory
 - Start receiver first: receiver.exe "..\File\out.txt" 50000
-- Start sender second:  sender.exe "..File\in.txt" 50000 "::1"
+- Start sender second:  sender.exe "..\File\in.txt" 50000 "::1"
