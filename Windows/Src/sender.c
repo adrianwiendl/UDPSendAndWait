@@ -143,7 +143,7 @@ int main (int argc, char* argv[])
 
 
 
-       memcpy(lines[(sizeof(lines)/sizeof(s_line))],s_line,sizeof(s_line));
+       memcpy(lines[(sizeof(lines)/sizeof(s_line))],&s_line,sizeof(s_line));
 
 
         
