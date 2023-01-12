@@ -10,6 +10,7 @@
 #include "checksum.h"
 #include "ackStruct.h"
 #include "lineStruct.h"
+#include <malloc.h>
 
 #define WAITTIME 5 //seconds to wait for acknowledgement
 #define MAXRETRIES 6
@@ -120,40 +121,84 @@ int main (int argc, char* argv[])
         printf("Successfully connected to server.\n");
     }
 
+    char linez[100][512];
 
+    int i = 0;
+    while (fgets(linez[i], 512, infile)) 
+    {
+        //printf("%s",linez[i]);
+        //linez[i][strlen(linez[i]-1)] = '\0';
+        // lines[i].data = line;
+        // lines[i].lineNo = i;
+        // printf("Read: %s as %d\n",lines[i].data,i);
+        puts("a");
+        i++;
+    }
+
+
+    for (int a = 0; a < i; a++)
+    {
+        //printf("%s\n",linez[a]);
+    }
 
     //Read and send the file line by line
-    while (fgets(line, BUFFERSIZE, infile)) 
-    {
+    //while (fgets(line, BUFFERSIZE, infile)) 
+    //{
         /*Intended functionality outline:
         * 1. Send 1st packet
         * 2. Await acknowledgement (WAITTIME Seconds)
         * 3.1 On positive acknowledgement: reset timer and send 2nd packet and so on
         * 3.2 On negative/no acknowledgement: Resend 1st packet, as long as timer has not expired, else abort.
         * */
-       
-       
-       lines[currentPacket].data = line;
-       lines[currentPacket].lineNo = currentPacket;
 
-       printf("Content of lines array: %d %s\n",lines[currentPacket].lineNo,lines[currentPacket].data);
 
-        //Calculate the checksum for the line
-        long checksum = generateChecksum(line, strlen(line));
+    //    if(currentPacket == 5 && tempRetries < 1)
+    //    {
+    //         currentPacket++;
+    //         tempRetries++;
+    //         continue;
+    //    }
 
-        //Print line + checksum being sent
-        printf("Sending: \"%s\" w/ Checksum: %ld\n",lines[currentPacket].data, checksum);
+    //    linez[currentPacket] = line;
+    //    lines[currentPacket].lineNo = currentPacket;
 
+
+
+       //printf("Content of lines array: %d %s\n",lines[currentPacket].lineNo,linez[currentPacket]);
 
         //Prepare packet
-        strcpy(packetToSend.textData, lines[currentPacket].data);
-        packetToSend.seqNr = currentPacket;
-        packetToSend.checksum = checksum;
+        // strcpy(packetToSend.textData, linez[currentPacket]);
+        // packetToSend.seqNr = currentPacket;
+        // packetToSend.checksum = checksum;
         
-        sendlen = sizeof(struct packet);
+        
         //Run loop to send
-        while (TRUE)
+        while(TRUE)
         {
+
+    //                if(currentPacket == 5 && tempRetries < 1)
+    //    {
+    //         currentPacket++;
+    //         tempRetries++;
+    //         continue;
+    //    }
+            //Calculate the checksum for the line
+            //long checksum = generateChecksum(line, strlen(line));
+            printf("___________Current Packet: %d. Content: %s",currentPacket,linez[currentPacket]);
+            long checksum = generateChecksum(linez[currentPacket], strlen(linez[currentPacket]));
+
+            //Print line + checksum being sent
+            printf("Sending: \"%s\" w/ Checksum: %ld\n",linez[currentPacket], checksum);
+
+            //Prepare packet
+            printf("----Current Packet is %d-----\n",currentPacket);
+            strcpy(packetToSend.textData, linez[currentPacket]);
+            //packetToSend.seqNr = lines[currentPacket].lineNo;
+            packetToSend.seqNr = currentPacket;
+            packetToSend.checksum = checksum;
+            
+            sendlen = sizeof(struct packet);
+
             if (send(sockfd, (unsigned char* ) &packetToSend, sendlen, 0) != sendlen)
             {
                 //Error on sending
@@ -194,17 +239,22 @@ int main (int argc, char* argv[])
                     {
                         //Received correct acknowledgement
                         //Break from current loop to send next packet
-                        puts("----------Received acknowledgement. Sending next packet.----------");
+                        printf("----------Received acknowledgement. Sending next packet.----------\n");
                         packetRetries = 0;
                         currentPacket++;
-                        break;
+                        if (currentPacket > i)
+                        {
+                            break;
+                        }
+
+                        continue;
                     }
                     else
                     {
                         //Incorrect acknowledgement
                         //TEST
                         //resend last packet
-                        puts("----------Incorrect acknowledgement (wrong packet). Resending last packet.----------");
+                        printf("----------Incorrect acknowledgement (packet %d). Resending last packet.----------",recvAck.seqNr);
                         currentPacket = recvAck.seqNr+1;
                         packetRetries++;
                         continue;
@@ -232,7 +282,7 @@ int main (int argc, char* argv[])
                 printf("Error on select(). Error code: %d\n",WSAGetLastError());
             }
         }
-    }
+    //}
 
     //Close the input file and the UDP socket
     //Cleanup

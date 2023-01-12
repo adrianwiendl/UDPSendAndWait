@@ -136,7 +136,7 @@ int main (int argc, char* argv[])
             //ELSE-Branch for wrong sequence
             else
             {
-                printf("Received unexpected packet");
+                printf("Received unexpected packet\n");
                 s_ack.seqNr = expectedPacket-1;
                 strcpy(s_ack.ack,ACKNOWLEDGEMENT);
                 if((send(newsockfd, (unsigned char* )&s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
