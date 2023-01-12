@@ -1,5 +1,5 @@
 struct line
 {
-    char* data; 
-    int lineNo; 
+    char *data;
+    int lineNo;
 };
