@@ -186,7 +186,7 @@ int main (int argc, char* argv[])
             if (res == 1 && packetRetries < MAXRETRIES)
             {
                 //Answer received. 
-                int recvlen = recv(sockfd, &s_ack, sizeof(s_ack), 0);
+                int recvlen = recv(sockfd, (unsigned char* )&s_ack, sizeof(s_ack), 0);
                 if(recvlen < 0)
                 {
                     printf("Error receiving. Error Code: %d",WSAGetLastError());

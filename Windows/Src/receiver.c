@@ -109,7 +109,7 @@ int main (int argc, char* argv[])
                     //Send positive acknowledgement
                     s_ack.seqNr = expectedPacket;
                     s_ack.ack = ACKNOWLEDGEMENT;
-                    if((send(newsockfd, s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
+                    if((send(newsockfd, (unsigned char* )&s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
                     {
                         //Error sending acknowledgement. Break.
                         printf("Error Sending Acknowledgment. Error Code: %d\n",WSAGetLastError());
@@ -138,7 +138,7 @@ int main (int argc, char* argv[])
                 printf("Received unexpected packet");
                 s_ack.seqNr = expectedPacket-1;
                 s_ack.ack = ACKNOWLEDGEMENT;
-                if((send(newsockfd, s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
+                if((send(newsockfd, (unsigned char* )&s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
                 {
                     //Error sending acknowledgement. Break.
                     printf("Error Sending Acknowledgment. Error Code: %d\n",WSAGetLastError());
