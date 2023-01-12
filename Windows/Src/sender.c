@@ -62,6 +62,8 @@ int main (int argc, char* argv[])
     //
     char* receivedAcknowledgement;
 
+    char* lines[BUFFERSIZE][BUFFERSIZE];
+
     //Timeout for waiting on acknowledgement
     timeout.tv_sec = WAITTIME;
     
@@ -128,7 +130,7 @@ int main (int argc, char* argv[])
         * 3.2 On negative/no acknowledgement: Resend 1st packet, as long as timer has not expired, else abort.
         * */
        
-
+       strcpy(lines[][currentPacket], line);
         
         //Calculate the checksum for the line
         long checksum = generateChecksum(line, strlen(line));
@@ -137,7 +139,7 @@ int main (int argc, char* argv[])
 
         
         //Prepare packet
-        strcpy(packetToSend.textData, line);
+        strcpy(packetToSend.textData, lines[][currentPacket]);
         packetToSend.seqNr = currentPacket;
         packetToSend.checksum = checksum;
         
@@ -164,22 +166,21 @@ int main (int argc, char* argv[])
             int res = select(sockfd + 1, &fds, NULL, NULL, &timeout);
             printf("Res received = %d\n", res);
 
-            char* receivedAcknowledgement = "";
+
             
             if (res == 1 && packetRetries < MAXRETRIES)
             {
                 //Answer received. 
-                int recvlen = recv(sockfd, receivedAcknowledgement, sizeof(receivedAcknowledgement), 0);
+                int recvlen = recv(sockfd, s_ack, sizeof(s_ack), 0);
                 if(recvlen < 0)
                 {
                     printf("Error receiving. Error Code: %d",WSAGetLastError());
                     closesocket(sockfd);
                     return (-1);
                 }
-                receivedAcknowledgement[recvlen]=0;
                 
                 //Check acknowledgement for correctness
-                if(strcmp(receivedAcknowledgement,ACKNOWLEDGEMENT) == 0)
+                if(strcmp(s_ack.ack,ACKNOWLEDGEMENT) == 0 && s_ack.seqNr = currentPacket)
                 {
                     //Received correct acknowledgement
                     //Break from current loop to send next packet
@@ -193,6 +194,7 @@ int main (int argc, char* argv[])
                     //Incorrect acknowledgement
                     //resend last packet
                     puts("----------Incorrect acknowledgement. Resending last packet.----------");
+                    currentPacket = s_ack.seqNr;
                     packetRetries++;
                     continue;
                 }
