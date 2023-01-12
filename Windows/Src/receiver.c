@@ -130,11 +130,13 @@ int main (int argc, char* argv[])
                                             receivedPacket.textData,
                                             receivedPacket.seqNr,
                                             receivedPacket.checksum);
+            
+            int calculatedChecksum = generateChecksum(receivedPacket.textData, strlen(receivedPacket.textData));
             if (receivedPacket.seqNr == expectedPacket)
             {
                 //Correct sequence
                 //Check checksum
-                int calculatedChecksum = generateChecksum(receivedPacket.textData, strlen(receivedPacket.textData));
+                
                 printf("Calculated checksum: %ld\n",calculatedChecksum);
                 if (receivedPacket.checksum == calculatedChecksum)
                 {
@@ -142,6 +144,7 @@ int main (int argc, char* argv[])
                     //Send positive acknowledgement
                     s_ack.seqNr = expectedPacket;
                     strcpy(s_ack.ack,ACKNOWLEDGEMENT);
+                    s_ack.ackChecksum = calculatedChecksum;
                     int sendlen = sizeof(struct acknowledgement);
                     
                     
@@ -176,16 +179,35 @@ int main (int argc, char* argv[])
                 }
                 else
                 {
-                    //Wrong checksum. Do not send acknowledgement.
+                    //Wrong checksum. //Do not send acknowledgement.
+                    s_ack.seqNr = expectedPacket;
+                    strcpy(s_ack.ack,ACKNOWLEDGEMENT);
+                    s_ack.ackChecksum = calculatedChecksum;
+                    int sendlen = sizeof(struct acknowledgement);
+
                     puts("Received checksum does not match calculated checksum. Awaiting resend.");
+                    if((send(newsockfd, (unsigned char* )&s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
+                    {
+                        //Error sending acknowledgement. Break.
+                        printf("Error Sending Acknowledgment. Error Code: %d\n",WSAGetLastError());
+                        //Unsure how to proceed here. Resend acknowledgement? Wait?
+                        break;
+                    }
+                    else
+                    {
+                        //Acknowledgement sent
+                        printf("Sent acknowledgement of wrong checksum. Expecting %d, received %d\n",calculatedChecksum,receivedPacket.checksum);
+                    }
+
                 }
             }
-            //ELSE-Branch for wrong sequence
+            //ELSE-Branch for wrong sequence number
             else
             {
                 printf("Received unexpected packet\n");
                 s_ack.seqNr = expectedPacket-1;
                 strcpy(s_ack.ack,ACKNOWLEDGEMENT);
+                s_ack.ackChecksum = calculatedChecksum;
                 if((send(newsockfd, (unsigned char* )&s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
                 {
                     //Error sending acknowledgement. Break.

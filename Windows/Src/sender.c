@@ -144,6 +144,7 @@ int main (int argc, char* argv[])
 
         
         int tempRetries = 0;
+        int erroneousChecksumRetries = 0;
         //Run loop to send
         while(TRUE)
         {
@@ -159,6 +160,23 @@ int main (int argc, char* argv[])
             //puts("uwuw");
             printf("___________Current Packet: %d. Content: %s",currentPacket,linez[currentPacket]);
             long checksum = generateChecksum(linez[currentPacket], strlen(linez[currentPacket]));
+            
+            //Provoke erroneous checksum on 7th packet
+            // if(currentPacket == 7 && erroneousChecksumRetries < 1)
+            // {
+            //     printf("Forcibly falsifying checksum cause ewil uwu\n");
+            //     if(checksum != 69420)
+            //     {
+            //         checksum = 69420;
+            //     }
+            //     else
+            //     {
+            //         checksum++;
+            //     }
+            //     erroneousChecksumRetries++;
+            // }
+
+
 
             //Print line + checksum being sent
             printf("Sending: \"%s\" w/ Checksum: %ld\n",linez[currentPacket], checksum);
@@ -210,7 +228,13 @@ int main (int argc, char* argv[])
                 //Check acknowledgement for correctness
                 if(strcmp(recvAck.ack,ACKNOWLEDGEMENT) == 0)
                 {
-                    if(recvAck.seqNr == currentPacket)
+                    if(recvAck.ackChecksum != checksum)
+                    {
+                        printf("Incorrect checksum received on Server. Resending packet...\n");
+                        packetRetries++;
+                        continue;
+                    }
+                    else if(recvAck.seqNr == currentPacket)
                     {
                         //Received correct acknowledgement
                         //Break from current loop to send next packet
@@ -229,7 +253,59 @@ int main (int argc, char* argv[])
                         //Incorrect acknowledgement
                         //TEST
                         //resend last packet
-                        printf("----------Incorrect acknowledgement (packet %d). Resending last packet.----------",recvAck.seqNr);
+                        printf("-----------Incorrect seqnr ack recv'd. Waiting %d second for correct seqnr.---------\n",WAITTIME);
+                        listen (sockfd, 5);
+                        
+                        int res = select(sockfd + 1, &fds, NULL, NULL, &timeout);
+                        printf(".....res:%d\n",res);
+                        if (res > 0)
+                        {
+                            //
+                            //check new ack seq nr
+                            //if correct continue
+                            int recvlen = recv(sockfd, (unsigned char* )&recvAck, sizeof(struct acknowledgement), 0);
+                            
+                            if(recvlen < 0)
+                            {
+                                //Don't remove! We don't know why, but without it everything breaks...
+                                //printf("recvlen: %d",recvlen);
+                                printf("Error receiving. Error Code: %d\n",WSAGetLastError());
+                                closesocket(sockfd);
+                                return (-1);
+                            }
+                            
+                            //Check acknowledgement for correctness
+                            if(strcmp(recvAck.ack,ACKNOWLEDGEMENT) == 0)
+                            {
+                                if(recvAck.seqNr == currentPacket)
+                                {
+                                    //Received correct acknowledgement
+                                    //Break from current loop to send next packet
+                                    printf("----------Received correct acknowledgement within %d seconds. Sending next packet.----------\n",WAITTIME);
+                                    packetRetries = 0;
+                                    currentPacket++;
+                                    if (currentPacket >= i)
+                                    {
+                                        break;
+                                    }
+                                    continue;
+                                }
+                                else
+                                {
+                                    //edge-case
+                                    //additional wrong acknowledgement within timeframe
+                                    //will not be handled differently.
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //stays on wrong seqnr
+                            FD_SET(sockfd, &fds);
+
+                        }
+
+                        printf("----------Incorrect acknowledgement (packet %d). Resending last packet.----------\n",recvAck.seqNr);
                         currentPacket = recvAck.seqNr+1;
                         packetRetries++;
                         continue;
@@ -274,4 +350,7 @@ int main (int argc, char* argv[])
 
     return 0;
 }
+
+
+
 
