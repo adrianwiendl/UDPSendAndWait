@@ -1,5 +1,6 @@
+#define BUFFERSIZE 1024
 struct acknowledgement
 {
-    char* ack; 
+    char ack[BUFFERSIZE]; 
     int seqNr; 
 };

@@ -59,12 +59,12 @@ int main (int argc, char* argv[])
     struct packet        packetToSend;
     struct sockaddr_in6  saddr, caddr;
     struct timeval       timeout;
-    struct acknowledgement s_ack;
+    struct acknowledgement recvAck;
     struct line         s_line;
     //
     char* receivedAcknowledgement;
 
-    struct line* lines[BUFFERSIZE];
+    struct line lines[BUFFERSIZE];
 
     //Timeout for waiting on acknowledgement
     timeout.tv_sec = WAITTIME;
@@ -132,29 +132,21 @@ int main (int argc, char* argv[])
         * 3.2 On negative/no acknowledgement: Resend 1st packet, as long as timer has not expired, else abort.
         * */
        
-       //Zero s_line to re-use ir
-       bzero((char* ) &s_line,sizeof(s_line));
-
        
-       strcpy(s_line.data, line);
-       s_line.lineNo = currentPacket;
+       lines[currentPacket].data = line;
+       lines[currentPacket].lineNo = currentPacket;
 
-       
+       printf("Content of lines array: %d %s\n",lines[currentPacket].lineNo,lines[currentPacket].data);
 
-
-
-       memcpy(lines[(sizeof(lines)/sizeof(s_line))],&s_line,sizeof(s_line));
-
-
-        
         //Calculate the checksum for the line
         long checksum = generateChecksum(line, strlen(line));
-        //Print line + checksum being sent
-        printf("Sending: \"%s\" w/ Checksum: %ld\n",lines[currentPacket]->data, checksum);
 
-        
+        //Print line + checksum being sent
+        printf("Sending: \"%s\" w/ Checksum: %ld\n",lines[currentPacket].data, checksum);
+
+
         //Prepare packet
-        strcpy(packetToSend.textData, lines[currentPacket]->data);
+        strcpy(packetToSend.textData, lines[currentPacket].data);
         packetToSend.seqNr = currentPacket;
         packetToSend.checksum = checksum;
         
@@ -186,33 +178,39 @@ int main (int argc, char* argv[])
             if (res == 1 && packetRetries < MAXRETRIES)
             {
                 //Answer received. 
-                int recvlen = recv(sockfd, (unsigned char* )&s_ack, sizeof(s_ack), 0);
+                
+                int recvlen = recv(sockfd, (unsigned char* )&recvAck, sizeof(struct acknowledgement), 0);
+                //int recvlen = recv(sockfd, (unsigned char* )&s_ack, sizeof(s_ack), 0);
                 if(recvlen < 0)
                 {
                     printf("Error receiving. Error Code: %d",WSAGetLastError());
                     closesocket(sockfd);
                     return (-1);
                 }
-                
                 //Check acknowledgement for correctness
-                if(strcmp(s_ack.ack,ACKNOWLEDGEMENT) == 0 && s_ack.seqNr == currentPacket)
+                if(strcmp(recvAck.ack,ACKNOWLEDGEMENT) == 0)
                 {
-                    //Received correct acknowledgement
-                    //Break from current loop to send next packet
-                    puts("----------Received acknowledgement. Sending next packet.----------");
-                    packetRetries = 0;
-                    currentPacket++;
-                    break;
+                    if(recvAck.seqNr == currentPacket)
+                    {
+                        //Received correct acknowledgement
+                        //Break from current loop to send next packet
+                        puts("----------Received acknowledgement. Sending next packet.----------");
+                        packetRetries = 0;
+                        currentPacket++;
+                        break;
+                    }
+                    else
+                    {
+                        //Incorrect acknowledgement
+                        //TEST
+                        //resend last packet
+                        puts("----------Incorrect acknowledgement (wrong packet). Resending last packet.----------");
+                        currentPacket = recvAck.seqNr+1;
+                        packetRetries++;
+                        continue;
+                    }
                 }
-                else
-                {
-                    //Incorrect acknowledgement
-                    //resend last packet
-                    puts("----------Incorrect acknowledgement. Resending last packet.----------");
-                    currentPacket = s_ack.seqNr+1;
-                    packetRetries++;
-                    continue;
-                }
+
             }
             else if (res == 0 && packetRetries < MAXRETRIES)
             {
