@@ -7,7 +7,6 @@
 #include <windows.h>
 #include "packetStruct.h"
 #include "checksum.h"
-#include "ackStruct.h"
 
 
 int main (int argc, char* argv[])
@@ -18,7 +17,7 @@ int main (int argc, char* argv[])
     exit(1);
     }
 
-    WSADATA wsaData;
+     WSADATA wsaData;
     //Initialize the socket API with the version of the
     //Winsock specification that we want to use
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -34,20 +33,20 @@ int main (int argc, char* argv[])
     int sockfd, newsockfd;
     int clielen, recvlen;
     char recvbuf[BUFFERSIZE];
-    struct sockaddr_in6 saddr, caddr;
-    unsigned short port = atoi(argv[2]);
+    struct sockaddr_in saddr, caddr;
+    int port = atoi(argv[2]);
     char* output_file = argv[1];
 
-    if ((sockfd = socket (AF_INET6, SOCK_STREAM, 0)) < 0)
+    if ((sockfd = socket (AF_INET, SOCK_STREAM, 0)) < 0)
     {
         perror("Error creating socket");
         return (-1);
     }
 
     bzero ((char* ) &saddr, sizeof(saddr));
-    saddr.sin6_family = AF_INET6;
-    saddr.sin6_addr = in6addr_any;
-    saddr.sin6_port = htons(port);
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = htonl (INADDR_ANY);
+    saddr.sin_port = htons(port);
 
     //Bind socket to port
     if (bind(sockfd, (struct sockaddr* ) &saddr, sizeof(saddr)) < 0)
@@ -55,9 +54,6 @@ int main (int argc, char* argv[])
         perror("Error binding socket");
         return (-1);
     }
-
-    //Acknowledgement
-    struct acknowledgement s_ack;
 
     // Open the output file for writing
     FILE *outfile = fopen(output_file, "w");
@@ -67,7 +63,7 @@ int main (int argc, char* argv[])
     }
 
     //Listen on Socket
-    listen(sockfd, 5);
+    listen (sockfd, 5);
 
     clielen = sizeof(caddr);
 
@@ -78,9 +74,13 @@ int main (int argc, char* argv[])
         return (-1);
     }
     struct packet receivedPacket;
+    char receivedPacketSerialized[BUFFERSIZE];
     //Receives files as long as sender has not shut down.
     do
     {
+        //recvlen = recv(newsockfd, recvbuf, BUFFERSIZE, 0);
+        //recvlen = recv(newsockfd, receivedPacketSerialized, BUFFERSIZE, 0);
+        //receivedPacketSerialized[recvlen] = 0;
         recvlen = recv(newsockfd, (unsigned char* )&receivedPacket, sizeof(struct packet), 0);
         if(recvlen < 0)
         {
@@ -107,8 +107,7 @@ int main (int argc, char* argv[])
                 {
                     //Correct checksum
                     //Send positive acknowledgement
-                    s_ack.seqNr = expectedPacket;
-                    if((send(newsockfd, s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
+                    if((send(newsockfd, ACKNOWLEDGEMENT, strlen(ACKNOWLEDGEMENT),0)) != strlen(ACKNOWLEDGEMENT))
                     {
                         //Error sending acknowledgement. Break.
                         printf("Error Sending Acknowledgment. Error Code: %d\n",WSAGetLastError());
@@ -131,26 +130,6 @@ int main (int argc, char* argv[])
                     puts("Received checksum does not match calculated checksum. Awaiting resend.");
                 }
             }
-            //ELSE-Branch for wrong sequence
-            else
-            {
-                printf("Received unexpected packet");
-                s_ack.seqNr = expectedPacket-1;
-                if((send(newsockfd, s_ack, sizeof(s_ack),0)) != sizeof(s_ack))
-                {
-                    //Error sending acknowledgement. Break.
-                    printf("Error Sending Acknowledgment. Error Code: %d\n",WSAGetLastError());
-                    //Unsure how to proceed here. Resend acknowledgement? Wait?
-                    break;
-                }
-                else
-                {
-                    //Acknowledgement sent
-                    printf("Sent acknowledgement of wrong sequential number\n");
-                }
-
-
-            }
         }
     }while(recvlen != 0);
 
@@ -158,8 +137,6 @@ int main (int argc, char* argv[])
     //Close the output file and the UDP socket
     fclose(outfile);
     closesocket(newsockfd);
-    closesocket(sockfd);
-    WSACleanup();
     
     return 0;
 }

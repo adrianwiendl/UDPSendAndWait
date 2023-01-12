@@ -8,7 +8,6 @@
 #include "packetStruct.h"
 #include <time.h>
 #include "checksum.h"
-#include "ackStruct.h"
 
 #define WAITTIME 5 //seconds to wait for acknowledgement
 #define MAXRETRIES 6
@@ -45,9 +44,9 @@ int main (int argc, char* argv[])
 
     //Parse passed command-line arguemnts
     char* input_file = argv[1];
-    unsigned short port = atoi(argv[2]);
+    int port = atoi(argv[2]);
     char* server = argv[3];
-
+    
     //
     char line[BUFFERSIZE];
     char recvbuf[BUFFERSIZE];
@@ -55,10 +54,10 @@ int main (int argc, char* argv[])
     int sendlen;
     
     //
-    struct packet        packetToSend;
-    struct sockaddr_in6  saddr, caddr;
-    struct timeval       timeout;
-    struct acknowledgement s_ack;
+    struct packet       packetToSend;
+    struct sockaddr_in  saddr, caddr;
+    struct timeval      timeout;
+
     //
     char* receivedAcknowledgement;
 
@@ -66,7 +65,7 @@ int main (int argc, char* argv[])
     timeout.tv_sec = WAITTIME;
     
     //Open socket
-    if ((sockfd = socket (AF_INET6, SOCK_STREAM, 0)) < 0)
+    if ((sockfd = socket (AF_INET, SOCK_STREAM, 0)) < 0)
     {
         //Error opening socket
         printf("Error opening socket. Error Code: %d",WSAGetLastError());
@@ -81,14 +80,14 @@ int main (int argc, char* argv[])
 
     //Parse IP-Address and port
     bzero ((char* ) &saddr, sizeof(saddr));
-    saddr.sin6_family = AF_INET6;
-    inet_pton(AF_INET6, server,&saddr.sin6_addr);
-    saddr.sin6_port = htons(port);
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = inet_addr (server);
+    saddr.sin_port = htons(port);
+
 
 
     //Print Confirmation for user
-    char buf[BUFFERSIZE];
-    printf("Sending %s (file) to %s (IP) on %d (port)\n", input_file, inet_ntop(AF_INET6,&saddr.sin6_addr,buf,sizeof(buf)), ntohs(saddr.sin6_port));
+    printf("Sending %s (file) to %u (IP) on %u (port)\n", input_file, saddr.sin_addr.s_addr, saddr.sin_port);
 
     //Open the input file for reading
     FILE *infile = fopen(input_file, "r");
@@ -134,17 +133,34 @@ int main (int argc, char* argv[])
         long checksum = generateChecksum(line, strlen(line));
         //Print line + checksum being sent
         printf("Sending: \"%s\" w/ Checksum: %ld\n",line, checksum);
-
+        //printf("Sending: %s \n",line);
+        //Temp solution: checksum is always 5
+        //checksum = 5;
         
         //Prepare packet
         strcpy(packetToSend.textData, line);
         packetToSend.seqNr = currentPacket;
         packetToSend.checksum = checksum;
+
+
+ 
+        //char sendPacketSerialized[BUFFERSIZE];
         
+        //Zero serialized packet for each new send operation
+        //bzero(sendPacketSerialized, sizeof(sendPacketSerialized));
+        
+        //Serialize packet - UNNECCESSARY
+        // strcat(sendPacketSerialized,packetToSend.textData);
+        // strcat(sendPacketSerialized,itoa(packetToSend.seqNr,sendPacketBuffer,10));
+        // strcat(sendPacketSerialized,itoa(packetToSend.checksum,sendPacketBuffer,10));
+        //sendlen = strlen(sendPacketSerialized);
+        //printf("packet  :%s\n",sendPacketSerialized);
+
         sendlen = sizeof(struct packet);
         //Run loop to send
         while (TRUE)
         {
+            //if (send(sockfd, sendPacketSerialized, sendlen, 0) != sendlen)
             if (send(sockfd, (unsigned char* ) &packetToSend, sendlen, 0) != sendlen)
             {
                 //Error on sending
@@ -177,6 +193,7 @@ int main (int argc, char* argv[])
                     return (-1);
                 }
                 receivedAcknowledgement[recvlen]=0;
+                //printf("Received acknowledgement \'%s\' from Server.\n",receivedAcknowledgement);
                 
                 //Check acknowledgement for correctness
                 if(strcmp(receivedAcknowledgement,ACKNOWLEDGEMENT) == 0)
