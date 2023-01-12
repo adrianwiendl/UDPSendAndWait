@@ -1,5 +1,6 @@
 #define BUFFERSIZE 1024
 #define ACKNOWLEDGEMENT "ACK"
+
 //Windows implementation of bzero() function. Thanks to Romain Hippeau on Stackoverflow!
 //https://stackoverflow.com/a/3492670
 #define bzero(b,len) (memset((b), '\0', (len)), (void) 0)

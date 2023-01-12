@@ -1,7 +1,5 @@
-#define ACKNOWLEDGEMENT "ACK"
-
 struct acknowledgement
 {
-    char ack = (char)ACKNOWLEDGEMENT; 
+    char* ack; 
     int seqNr; 
 };

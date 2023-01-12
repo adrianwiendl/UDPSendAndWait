@@ -133,8 +133,8 @@ int main (int argc, char* argv[])
         * */
        
        //Zero s_line to re-use ir
-       bzero(s_line.data,BUFFERSIZE);
-       bzero(s_line.lineNo,BUFFERSIZE);
+       bzero((char* ) &s_line,sizeof(s_line));
+
        
        strcpy(s_line.data, line);
        s_line.lineNo = currentPacket;
