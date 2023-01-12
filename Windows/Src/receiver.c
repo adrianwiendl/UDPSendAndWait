@@ -8,6 +8,7 @@
 #include "packetStruct.h"
 #include "checksum.h"
 #include "ackStruct.h"
+#define WAITTIME 5
 
 
 int main (int argc, char* argv[])
@@ -35,8 +36,13 @@ int main (int argc, char* argv[])
     int clielen, recvlen;
     char recvbuf[BUFFERSIZE];
     struct sockaddr_in6 saddr, caddr;
+        struct timeval       timeout;
     unsigned short port = atoi(argv[2]);
     char* output_file = argv[1];
+        timeout.tv_sec = WAITTIME;
+
+    struct fd_set fds;
+    FD_ZERO(&fds);
 
     if ((sockfd = socket (AF_INET6, SOCK_STREAM, 0)) < 0)
     {
@@ -66,6 +72,8 @@ int main (int argc, char* argv[])
         return (-1);
     }
 
+
+
     //Listen on Socket
     listen(sockfd, 5);
 
@@ -79,9 +87,34 @@ int main (int argc, char* argv[])
     }
     struct packet receivedPacket;
     //Receives files as long as sender has not shut down.
+    int tempRetries = 0;
+    /* data declaration */
+    time_t start, end;
+        
+        
+    FD_SET(newsockfd, &fds);
+/* ... */
+
+
     do
     {
-        recvlen = recv(newsockfd, (unsigned char* )&receivedPacket, sizeof(struct packet), 0);
+        //Set socket to non-blocking mode
+        u_long iMode = 1;
+        ioctlsocket(newsockfd, FIONBIO, &iMode);
+
+
+        listen (newsockfd, 5);
+        int res = select(newsockfd + 1, &fds, NULL, NULL, &timeout);
+        printf("res from select() %d\n",res);
+        if (res > 0)
+        {
+            puts("RECEIVING");
+            recvlen = recv(newsockfd, (unsigned char* )&receivedPacket, sizeof(struct packet), 0);
+        }
+        else
+        {
+            printf("i go cri now bye");
+        }
         if(recvlen < 0)
         {
             printf("Error receiving. Error Code: %d",WSAGetLastError());
@@ -110,6 +143,20 @@ int main (int argc, char* argv[])
                     s_ack.seqNr = expectedPacket;
                     strcpy(s_ack.ack,ACKNOWLEDGEMENT);
                     int sendlen = sizeof(struct acknowledgement);
+                    
+                    
+                    //Provoke missing acknowledgement  on 8th packet
+                    // if(s_ack.seqNr == 8 && tempRetries < 1)
+                    // {
+                    //     printf("Forcing missing acknowledgement on 8th packet\n");
+                    //     tempRetries++;
+                    //     //Sleep(6000);
+                    //     /* wait 2.5 seconds */
+                    //     time(&start);
+                    //     do time(&end); while(difftime(end, start) <= 5);
+                    //     continue;
+                    // }
+
                     if((send(newsockfd, (unsigned char* )&s_ack, sendlen,0)) != sendlen)
                     {
                         //Error sending acknowledgement. Break.
@@ -149,7 +196,7 @@ int main (int argc, char* argv[])
                 else
                 {
                     //Acknowledgement sent
-                    printf("Sent acknowledgement of wrong sequential number\n");
+                    printf("Sent acknowledgement of wrong sequential number. Expecting %d, received %d\n",expectedPacket,receivedPacket.seqNr);
                 }
 
 

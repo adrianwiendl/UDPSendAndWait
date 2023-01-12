@@ -120,26 +120,16 @@ int main (int argc, char* argv[])
     {
         printf("Successfully connected to server.\n");
     }
-
+    
     char linez[100][512];
 
     int i = 0;
+
     while (fgets(linez[i], 512, infile)) 
     {
-        //printf("%s",linez[i]);
-        //linez[i][strlen(linez[i]-1)] = '\0';
-        // lines[i].data = line;
-        // lines[i].lineNo = i;
-        // printf("Read: %s as %d\n",lines[i].data,i);
-        puts("a");
         i++;
     }
 
-
-    for (int a = 0; a < i; a++)
-    {
-        //printf("%s\n",linez[a]);
-    }
 
     //Read and send the file line by line
     //while (fgets(line, BUFFERSIZE, infile)) 
@@ -152,38 +142,21 @@ int main (int argc, char* argv[])
         * */
 
 
-    //    if(currentPacket == 5 && tempRetries < 1)
-    //    {
-    //         currentPacket++;
-    //         tempRetries++;
-    //         continue;
-    //    }
-
-    //    linez[currentPacket] = line;
-    //    lines[currentPacket].lineNo = currentPacket;
-
-
-
-       //printf("Content of lines array: %d %s\n",lines[currentPacket].lineNo,linez[currentPacket]);
-
-        //Prepare packet
-        // strcpy(packetToSend.textData, linez[currentPacket]);
-        // packetToSend.seqNr = currentPacket;
-        // packetToSend.checksum = checksum;
         
-        
+        int tempRetries = 0;
         //Run loop to send
         while(TRUE)
         {
-
-    //                if(currentPacket == 5 && tempRetries < 1)
-    //    {
-    //         currentPacket++;
-    //         tempRetries++;
-    //         continue;
-    //    }
+            //Provoke erroneous sequencing on 5th packet
+            // if(currentPacket == 5 && tempRetries < 1)
+            // {
+            //     currentPacket++;
+            //     tempRetries++;
+            //     continue;
+            // }
             //Calculate the checksum for the line
             //long checksum = generateChecksum(line, strlen(line));
+            //puts("uwuw");
             printf("___________Current Packet: %d. Content: %s",currentPacket,linez[currentPacket]);
             long checksum = generateChecksum(linez[currentPacket], strlen(linez[currentPacket]));
 
@@ -228,6 +201,8 @@ int main (int argc, char* argv[])
                 //int recvlen = recv(sockfd, (unsigned char* )&s_ack, sizeof(s_ack), 0);
                 if(recvlen < 0)
                 {
+                    //Don't remove! We don't know why, but without it everything breaks...
+                    //printf("recvlen: %d",recvlen);
                     printf("Error receiving. Error Code: %d",WSAGetLastError());
                     closesocket(sockfd);
                     return (-1);
@@ -242,7 +217,7 @@ int main (int argc, char* argv[])
                         printf("----------Received acknowledgement. Sending next packet.----------\n");
                         packetRetries = 0;
                         currentPacket++;
-                        if (currentPacket > i)
+                        if (currentPacket >= i)
                         {
                             break;
                         }
@@ -267,6 +242,8 @@ int main (int argc, char* argv[])
                 //Timeout
                 //Resend
                 printf("----------No Acknowledgement received after %d seconds. Resending last packet.----------\n",WAITTIME);
+                FD_SET(sockfd, &fds);
+
                 packetRetries++;
                 continue;
             }
@@ -280,6 +257,10 @@ int main (int argc, char* argv[])
             else if(res == -1)
             {
                 printf("Error on select(). Error code: %d\n",WSAGetLastError());
+                
+                
+                //TEMP
+                return(-1);
             }
         }
     //}
