@@ -1,14 +1,18 @@
-0.KARL MARX
-1.FRIEDRICH ENGELS
-2.Manifest
-3.der Kommunistischen Partei[297] 
-4.Geschrieben im Dezember 1847/Januar 1848.
-5.Gedruckt und als Einzelbroschüre im Februar/März 1848 in London erschienen.
-6.
-7.Der vorliegenden Ausgabe liegt der Text der letzten von
-8.Friedrich Engels besorgten deutschen Ausgabe von 1890 zugrunde.
-9.In den Fußnoten werden die verschiedenen Lesarten der deutschen Ausgaben
-10.von 1848,1872 und 1883 vermerkt, soweit sie den Inhalt berühren. Alle Vorworte
-11.der Verfasser zum „Manifest" bringen wir als Beilagen am Schluß des vorliegenden Bandes. 
-12.Umschlagseite des „Manifestes der Kommunistischen Partei"
-13.London 1848 (dreißigseitige Ausgabe) 
+01 - Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+02 - sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+03 - Enim sed faucibus turpis in eu mi bibendum neque.
+04 - In iaculis nunc sed augue lacus.
+05 - Arcu cursus vitae congue mauris rhoncus aenean.
+06 - Ac placerat vestibulum lectus mauris ultrices eros in cursus turpis.
+07 - Pellentesque habitant morbi tristique senectus et netus et malesuada.08 - Quam elementum pulvinar etiam non quam lacus suspendisse.
+09 - Fermentum dui faucibus in ornare quam.
+10 - Duis at consectetur lorem donec massa sapien faucibus et.
+11 - Diam phasellus vestibulum lorem sed risus ultricies tristique nulla.
+12 - Fringilla urna porttitor rhoncus dolor purus.
+13 - Nunc sed blandit libero volutpat sed.
+14 - Sem fringilla ut morbi tincidunt augue interdum velit euismod.
+15 - Augue interdum velit euismod in pellentesque massa placerat duis ultricies.
+16 - Pulvinar neque laoreet suspendisse interdum consectetur libero id.
+17 - Duis ut diam quam nulla porttitor massa id neque.
+18 - Lorem ipsum dolor sit amet consectetur.
+19 - Rhoncus aenean vel elit scelerisque mauris pellentesque pulvinar pellentesque.
