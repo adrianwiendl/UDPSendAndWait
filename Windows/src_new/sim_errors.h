@@ -3,7 +3,7 @@
 
 int retries = 0;
 
-int provokeSeqError(int currentPacket, int packetToSkip)
+int provokeSeqError(int currentPacket, int packetToSkip) // SENDER
 {
 
     // Provoke erroneous sequencing on 5th packet
@@ -17,7 +17,7 @@ int provokeSeqError(int currentPacket, int packetToSkip)
     return currentPacket;
 }
 
-int provokeChecksumError(int currentPacket, int checksum, int packetToFalsify)
+int provokeChecksumError(int currentPacket, int checksum, int packetToFalsify) // SENDER
 {
     // Provoke erroneous checksum on 7th packet
     if (currentPacket == packetToFalsify && retries < 1)
@@ -29,7 +29,7 @@ int provokeChecksumError(int currentPacket, int checksum, int packetToFalsify)
 
     return checksum;
 }
-int provokeMissingAck(int seqNr, int seqNrToSkip)
+int provokeMissingAck(int seqNr, int seqNrToSkip) // RECEIVER
 {
     time_t start, end;
     if (seqNr == seqNrToSkip && retries < 1)
