@@ -18,9 +18,3 @@ struct acknowledgement
     int seqNr;
     int ackChecksum;
 };
-
-struct line
-{
-    char *data;
-    int lineNo;
-};

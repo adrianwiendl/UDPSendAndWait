@@ -61,8 +61,6 @@ int main(int argc, char *argv[])
     //
     char *receivedAcknowledgement;
 
-    struct line lines[BUFFERSIZE];
-
     // Timeout for waiting on acknowledgement
     timeout.tv_sec = WAITTIME;
 
@@ -285,7 +283,7 @@ int main(int argc, char *argv[])
     }
 
     // Close the input file and the UDP socket; clean up
-    printf("File sent. Shutting down connection.\n");
+    printf("EOF reached. Shutting down connection...\n");
     fclose(infile);
     closesocket(sockfd);
     WSACleanup();
