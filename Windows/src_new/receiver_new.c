@@ -152,20 +152,22 @@ int main(int argc, char *argv[])
                     int sendlen = sizeof(struct acknowledgement);
 
                     // Provoke missing acknowledgement on 8th packet
-                    //s_ack.seqNr = provokeSeqError(s_ack.seqNr, 8);
+                    if (provokeMissingAck(s_ack.seqNr, 8) != 0)
+                    {
+                        if ((send(newsockfd, (unsigned char *)&s_ack, sendlen, 0)) != sendlen) // Sending acknowledgement failed
+                        {
+                            printf("Error Sending Acknowledgment. Error Code: %d\n", WSAGetLastError());
+                            // Unsure how to proceed here. Resend acknowledgement? Wait?
+                            break;
+                        }
+                        else // Acknowledgement successfully sent
+                        {
+                            printf("Sent acknowledgement %s [%d] [%d]\n\n", s_ack.ack, s_ack.seqNr, s_ack.ackChecksum);
+                            fputs(receivedPacket.textData, outfile); // Save received text to file; await next packet
+                            expectedPacket++;
+                        }
+                    }
 
-                    if ((send(newsockfd, (unsigned char *)&s_ack, sendlen, 0)) != sendlen) // Sending acknowledgement failed
-                    {
-                        printf("Error Sending Acknowledgment. Error Code: %d\n", WSAGetLastError());
-                        // Unsure how to proceed here. Resend acknowledgement? Wait?
-                        break;
-                    }
-                    else // Acknowledgement successfully sent
-                    {
-                        printf("Sent acknowledgement %s\n\n", s_ack.ack);
-                        fputs(receivedPacket.textData, outfile); // Save received text to file; await next packet
-                        expectedPacket++;
-                    }
                 }
                 else // Wrong checksum. Do not send acknowledgement.
                 {
@@ -175,7 +177,7 @@ int main(int argc, char *argv[])
                     int sendlen = sizeof(struct acknowledgement);
 
                     printf("Received checksum [%d]. Does not match calculated checksum [%d]. Awaiting resend.\n",
-                            s_ack.ackChecksum,
+                            receivedPacket.checksum,
                             calculatedChecksum);
 
                     if ((send(newsockfd, (unsigned char *)&s_ack, sizeof(s_ack), 0)) != sizeof(s_ack))
@@ -197,7 +199,7 @@ int main(int argc, char *argv[])
             else
             {
                 printf("Received packet with unexpected sequence number [%d]. Expected [%d].\n",
-                        s_ack.seqNr,
+                        receivedPacket.seqNr,
                         expectedPacket);
 
                 s_ack.seqNr = expectedPacket - 1;

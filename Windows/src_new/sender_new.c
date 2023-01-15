@@ -136,10 +136,10 @@ int main(int argc, char *argv[])
         long checksum = generateChecksum(linez[currentPacket], strlen(linez[currentPacket]));
 
         // Provoke erroneous sequencing on 5th packet
-        //currentPacket = provokeSeqError(currentPacket, 5); // (current, packet to falsify)
+        currentPacket = provokeSeqError(currentPacket, 3); // (current, packet to falsify)
 
         // Provoke erroneous checksum on 7th packet
-        //checksum = provokeChecksumError(currentPacket, checksum, 7); // (current, checksum, packet to falsify)
+        checksum = provokeChecksumError(currentPacket, checksum, 12); // (current, checksum, packet to falsify)
 
         // Prepare packet
         strcpy(packetToSend.textData, linez[currentPacket]);
@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
             // Check acknowledgement for correctness
             if (strcmp(recvAck.ack, ACKNOWLEDGEMENT) == 0)
             {
-                if (recvAck.ackChecksum != checksum) // received checksum doesn't match calculated
+                if (recvAck.seqNr == currentPacket && recvAck.ackChecksum != checksum) // received checksum doesn't match calculated
                 {
                     printf("Server received incorrect checksum. Resending...\n\n");
                     packetRetries++;
