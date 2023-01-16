@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <windows.h>
+#define WAITTIME 5 // Seconds to wait for acknowledgement
 
 int seqRetries = 0;
 int csmRetries = 0;
@@ -25,7 +26,7 @@ int provokeChecksumError(int currentPacket, int checksum, int packetToFalsify) /
     if (currentPacket == packetToFalsify && csmRetries < 1)
     {
         printf("Forcibly falsifying checksum. (-1)\n");
-        checksum--; // falsify checksum
+        checksum--; // falsify checksum by changing value
         csmRetries++;
     }
 
