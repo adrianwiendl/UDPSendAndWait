@@ -64,6 +64,9 @@ int main(int argc, char *argv[])
     // Timeout for waiting on acknowledgement
     timeout.tv_sec = WAITTIME;
 
+    // Output
+    char packetData[BUFFERSIZE];
+
     // Open socket
     if ((sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
     {
@@ -147,9 +150,10 @@ int main(int argc, char *argv[])
         packetToSend.checksum = checksum;
 
         // Remove trailing newline character for better diagnosis output
-        linez[currentPacket][strcspn(linez[currentPacket], "\n")] = 0;
+        strcpy(packetData, linez[currentPacket]);
+        packetData[strcspn(packetData, "\n")] = 0;
 
-        printf("\nCurrent Packet: [%d]. Content: [\"%s\"].\n", currentPacket, linez[currentPacket]);
+        printf("\nCurrent Packet: [%d]. Content: [\"%s\"].\n", currentPacket, packetData);
 
         sendlen = sizeof(struct packet);
         if (send(sockfd, (unsigned char *)&packetToSend, sendlen, 0) != sendlen) // Error on sending
@@ -163,7 +167,7 @@ int main(int argc, char *argv[])
         // Sending successful
 
         // Print line + checksum sent
-        printf("Sent packet [%d] with data [\"%s\"] and checksum [%ld].\n", currentPacket, linez[currentPacket], checksum);
+        printf("Sent packet [%d] with data [\"%s\"] and checksum [%ld].\n", currentPacket, packetData, checksum);
 
         // Set socket to non-blocking mode
         u_long iMode = 1;
