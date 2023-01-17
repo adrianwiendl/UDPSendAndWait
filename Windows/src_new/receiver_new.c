@@ -16,10 +16,17 @@
 int main(int argc, char *argv[])
 {
     // Check correct program call
-    if (argc != 3)
+    if (argc < 3 || argc > 4)
     {
         fprintf(stderr, "Usage: %s <output file> <port>\n", argv[0]);
         exit(1);
+    }
+
+    //
+    if(argc == 4)
+    {
+        char* r1 = argv[3];
+        menuReceiver(r1);
     }
     puts("============SAW-Protokoll auf Basis von UDP-Sockets============");
     puts("Beleg im Modul I160: RN/KS im WS2022/23 an der HTW Dresden");
@@ -173,7 +180,8 @@ int main(int argc, char *argv[])
                     int sendlen = sizeof(struct acknowledgement);
 
                     // Provoke missing acknowledgement on 8th packet
-                    if (provokeMissingAck(s_ack.seqNr, 8) != 0)
+                    printf("Missing ack pack test output: %d\n", MissingAckPack);
+                    if (provokeMissingAck(s_ack.seqNr, MissingAckPack) != 0)
                     {
                         if ((sendto(sockfd, (unsigned char *)&s_ack, sendlen, 0, (struct sockaddr *)&caddr, sizeof(caddr))) != sendlen) // Sending acknowledgement failed
                         {

@@ -18,7 +18,7 @@
 int main(int argc, char *argv[])
 {
     // Check parameter count
-    if (argc < 4 || argc > 7) // Incorrect program call
+    if (argc < 4 || argc > 6) // Incorrect program call
     {
         fprintf(stderr, "Usage: %s <input file> <port> <IPv6 address> <error=packetnumber>\n", argv[0]);
         exit(1);
@@ -28,20 +28,13 @@ int main(int argc, char *argv[])
     {
         char *e1 = argv[4];
         char *e2 = argv[5];
-        char *e3 = argv[6];
 
         if(argc < 6)
         {
           e2 = "-l=0";
         }
 
-       if(argc < 7)
-       {
-        e3 = "-l=0";
-       }
-
-
-        menu(e1, e2, e3);
+        menuSender(e1, e2);
 
     }
 
@@ -145,10 +138,10 @@ int main(int argc, char *argv[])
         long checksum = generateChecksum(lines[currentPacket], strlen(lines[currentPacket]));
 
         // Provoke erroneous sequencing on 5th packet
-        currentPacket = provokeSeqError(currentPacket, 3); // (current, packet to falsify)
+        currentPacket = provokeSeqError(currentPacket, SeqErrorPack); // (current, packet to falsify)
 
         // Provoke erroneous checksum on 7th packet
-        checksum = provokeChecksumError(currentPacket, checksum, 12); // (current, checksum, packet to falsify)
+        checksum = provokeChecksumError(currentPacket, checksum, CsmErrorPack); // (current, checksum, packet to falsify)
 
         // Prepare packet
         strcpy(packetToSend.textData, lines[currentPacket]);
