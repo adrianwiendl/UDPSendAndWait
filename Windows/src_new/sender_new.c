@@ -6,14 +6,13 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <time.h>
-#include <malloc.h>
 
 #include "structs.h"
 #include "checksum.h"
 #include "sim_errors.h"
 #include "arguments.h"
 
-#define WAITTIME 5 // Seconds to wait for acknowledgement
+//#define WAITTIME 5 // Seconds to wait for acknowledgement
 #define MAXRETRIES 6
 
 int main(int argc, char *argv[])
@@ -90,7 +89,7 @@ int main(int argc, char *argv[])
     char packetData[BUFFERSIZE];
 
     // Open socket
-    if ((sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
+    if ((sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) < 0)
     {
         // Error opening socket
         printf("Error opening socket. Error Code: [%d]", WSAGetLastError());
@@ -124,25 +123,10 @@ int main(int argc, char *argv[])
         return (-1);
     }
 
-    // Connect socket
-    if (connect(sockfd, (struct sockaddr *)&saddr, sizeof(saddr)) < 0)
-    {
-        // Error connecting socket
-        printf("Error connecting socket: Error code [%d].\n", WSAGetLastError());
-        closesocket(sockfd);
-        fclose(infile);
-        WSACleanup();
-        return (-1);
-    }
-    else // Connection successful
-    {
-        printf("Successfully connected to server [%s]:[%d].\n", inet_ntop(AF_INET6, &saddr.sin6_addr, buf, sizeof(buf)), ntohs(saddr.sin6_port));
-    }
-
-    char linez[100][512]; // 2-Dimensional-Array for read lines & linenumbers
+    char lines[100][512]; // 2-Dimensional-Array for read lines & linenumbers
 
     int i = 0;
-    while (fgets(linez[i], 512, infile))
+    while (fgets(lines[i], 512, infile))
     {
         i++;
     } // Read file line by line and store each line in the array
@@ -158,7 +142,7 @@ int main(int argc, char *argv[])
     while (TRUE)
     {
         // Calculate the checksum for the line
-        long checksum = generateChecksum(linez[currentPacket], strlen(linez[currentPacket]));
+        long checksum = generateChecksum(lines[currentPacket], strlen(lines[currentPacket]));
 
         // Provoke erroneous sequencing on 5th packet
         currentPacket = provokeSeqError(currentPacket, 3); // (current, packet to falsify)
@@ -167,18 +151,18 @@ int main(int argc, char *argv[])
         checksum = provokeChecksumError(currentPacket, checksum, 12); // (current, checksum, packet to falsify)
 
         // Prepare packet
-        strcpy(packetToSend.textData, linez[currentPacket]);
+        strcpy(packetToSend.textData, lines[currentPacket]);
         packetToSend.seqNr = currentPacket;
         packetToSend.checksum = checksum;
 
         // Remove trailing newline character for better diagnosis output
-        strcpy(packetData, linez[currentPacket]);
+        strcpy(packetData, lines[currentPacket]);
         packetData[strcspn(packetData, "\n")] = 0;
 
         printf("\nCurrent Packet: [%d]. Content: [\"%s\"].\n", currentPacket, packetData);
 
         sendlen = sizeof(struct packet);
-        if (send(sockfd, (unsigned char *)&packetToSend, sendlen, 0) != sendlen) // Error on sending
+        if (sendto(sockfd, (unsigned char *)&packetToSend, sendlen, 0, (struct sockaddr *)&saddr, sizeof(saddr)) != sendlen) // Error on sending
         {
             printf("Error sending packet [%d]. Error Code: [%d].", currentPacket, WSAGetLastError());
             fclose(infile);
@@ -198,12 +182,13 @@ int main(int argc, char *argv[])
         // Listen on socket for acknowledgement for WAITTIME seconds
         listen(sockfd, 5);
         int res = select(sockfd + 1, &fds, NULL, NULL, &timeout);
-        printf("Answer received: [%d].\n", res);
+        printf("Incoming connection requests: [%d].\n", res);
 
         if (res == 1 && packetRetries < MAXRETRIES)
         {
             // Answer received.
-            int recvlen = recv(sockfd, (unsigned char *)&recvAck, sizeof(struct acknowledgement), 0);
+            int size = sizeof(saddr);
+            int recvlen = recvfrom(sockfd, (unsigned char *)&recvAck, sizeof(struct acknowledgement), 0, (struct sockaddr *)&saddr, &size);
             if (recvlen < 0)
             {
                 printf("Error receiving. Code [%d].", WSAGetLastError());
@@ -240,7 +225,7 @@ int main(int argc, char *argv[])
                     printf("\nReceived answer [%d].\n", res);
                     if (res > 0)
                     {
-                        int recvlen = recv(sockfd, (unsigned char *)&recvAck, sizeof(struct acknowledgement), 0);
+                        int recvlen = recvfrom(sockfd, (unsigned char *)&recvAck, sizeof(struct acknowledgement), 0, NULL, NULL);
 
                         if (recvlen < 0)
                         {
@@ -309,7 +294,7 @@ int main(int argc, char *argv[])
     }
 
     // Close the input file and the UDP socket; clean up
-    printf("EOF reached. Shutting down connection...\n");
+    printf("EOF reached. Ending transmission...\n");
     fclose(infile);
     closesocket(sockfd);
     WSACleanup();

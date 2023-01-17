@@ -11,7 +11,7 @@
 #include "sim_errors.h"
 #include "arguments.h"
 
-#define WAITTIME 5
+//#define WAITTIME 5
 
 int main(int argc, char *argv[])
 {
@@ -21,7 +21,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Usage: %s <output file> <port>\n", argv[0]);
         exit(1);
     }
-
+    puts("============SAW-Protokoll auf Basis von UDP-Sockets============");
+    puts("Beleg im Modul I160: RN/KS im WS2022/23 an der HTW Dresden");
+    puts("Martin Dittrich, Michael Novak, Benjamin Kunath, Adrian Wiendl");
+    puts("===============================================================");
     WSADATA wsaData;
     // Initialize the socket API with the version of the
     // Winsock specification that we want to use
@@ -38,10 +41,12 @@ int main(int argc, char *argv[])
     int expectedPacket = 0;
     int totalPacketCount = 0;
 
-    int sockfd, newsockfd;
+    int sockfd;
     int clielen, recvlen;
     char recvbuf[BUFFERSIZE];
     struct sockaddr_in6 saddr, caddr;
+    //saddr: everything for server (receiver)
+    //caddr: everything for client (sender)
     struct timeval timeout;
     unsigned short port = atoi(argv[2]);
     char *output_file = argv[1];
@@ -60,7 +65,7 @@ int main(int argc, char *argv[])
     FD_ZERO(&fds);
 
     // Create socket
-    if ((sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
+    if ((sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) < 0)
     {
         perror("Error creating socket");
         return (-1);
@@ -70,6 +75,9 @@ int main(int argc, char *argv[])
     saddr.sin6_family = AF_INET6;
     saddr.sin6_addr = in6addr_any;
     saddr.sin6_port = htons(port);
+
+    bzero((char *)&caddr, sizeof(caddr));
+    caddr.sin6_family = AF_INET6;
 
     // Bind socket to port
     if (bind(sockfd, (struct sockaddr *)&saddr, sizeof(saddr)) < 0)
@@ -90,54 +98,66 @@ int main(int argc, char *argv[])
     listen(sockfd, 5);
 
     clielen = sizeof(caddr);
-    newsockfd = accept(sockfd, (struct sockaddr *)&caddr, &clielen);
-    if (newsockfd < 0)
-    {
-        printf("Error accepting connection. Code [%d].", WSAGetLastError());
-        return (-1);
-    }
 
-    FD_SET(newsockfd, &fds);
-
+    FD_SET(sockfd, &fds);
+    puts("Server is ready to receive.\n");
     do // Receives data as long as sender has not shut down.
     {
         // Set socket to non-blocking mode
         u_long iMode = 1;
-        ioctlsocket(newsockfd, FIONBIO, &iMode);
+        ioctlsocket(sockfd, FIONBIO, &iMode);
 
-        listen(newsockfd, 5);
-        int res = select(newsockfd + 1, &fds, NULL, NULL, &timeout); // wait for connection
-        printf("Answer received:  [%d].\n", res);
+        listen(sockfd, 5);
+        int res = select(sockfd + 1, &fds, NULL, NULL, &timeout); // wait for connection
+
+        printf("Incoming connection requests:  [%d].\n", res);
         if (res > 0) // Receiving something
         {
             printf("Receiving...\n");
-            recvlen = recv(newsockfd, (unsigned char *)&receivedPacket, sizeof(struct packet), 0); // Receive data
+            int size = sizeof(caddr);
+            recvlen = recvfrom(sockfd, (unsigned char *)&receivedPacket, sizeof(struct packet), 0, (struct sockaddr *)&caddr, &size); // Receive data
 
-            // Remove trailing newline character for better diagnosis output
+            // Remove trailing newline character for better diagnosis output in storage variable
             strcpy(packetData, receivedPacket.textData);
             packetData[strcspn(packetData, "\n")] = 0;
         }
-        else // Error or select-timeout
+        else if (res == 0)
         {
-            printf("Error during select(). Code [%d].", res);
+            printf("No answer received in timeframe.\n");
+            recvlen = 0;
+            continue;
+        }
+        else // Error on select-timeout, res < 0
+        {
+            if(errno == 0)
+            {
+                printf("Receive Error. Error Code: [%d]\nEOF reached.\n",errno);
+            }
+            else
+            {
+                printf("Error on select(). Error Code: [%d]\n",errno);
+            }
+            break;
         }
 
         if (recvlen < 0) // Receive error
         {
             printf("Error receiving. Code [%d].", WSAGetLastError());
             fclose(outfile);
-            closesocket(newsockfd);
+            closesocket(sockfd);
             return (-1);
         }
 
         // Successfully received data
-        if (recvlen != 0)
+        else if (recvlen != 0)
         {
+            totalPacketCount++;
             // Print status
-            printf("Received packet [%d] with data [\"%s\"] and checksum [%d].\n",
+            printf("Received sequence-no. [%d] with data [\"%s\"] and checksum [%d] in packet [%d].\n",
                    receivedPacket.seqNr,
                    packetData,
-                   receivedPacket.checksum);
+                   receivedPacket.checksum,
+                   totalPacketCount);
 
             // Calculate checksum
             int calculatedChecksum = generateChecksum(receivedPacket.textData, strlen(receivedPacket.textData));
@@ -155,7 +175,7 @@ int main(int argc, char *argv[])
                     // Provoke missing acknowledgement on 8th packet
                     if (provokeMissingAck(s_ack.seqNr, 8) != 0)
                     {
-                        if ((send(newsockfd, (unsigned char *)&s_ack, sendlen, 0)) != sendlen) // Sending acknowledgement failed
+                        if ((sendto(sockfd, (unsigned char *)&s_ack, sendlen, 0, (struct sockaddr *)&caddr, sizeof(caddr))) != sendlen) // Sending acknowledgement failed
                         {
                             printf("Error Sending Acknowledgment. Error Code: %d\n", WSAGetLastError());
                             // Unsure how to proceed here. Resend acknowledgement? Wait?
@@ -181,7 +201,7 @@ int main(int argc, char *argv[])
                             receivedPacket.checksum,
                             calculatedChecksum);
 
-                    if ((send(newsockfd, (unsigned char *)&s_ack, sizeof(s_ack), 0)) != sizeof(s_ack))
+                    if ((sendto(sockfd, (unsigned char *)&s_ack, sendlen, 0, (struct sockaddr *)&caddr, sizeof(caddr))) != sendlen)
                     {
                         // Error sending acknowledgement. Break.
                         printf("Error Sending Acknowledgment. Error Code: %d\n", WSAGetLastError());
@@ -206,7 +226,8 @@ int main(int argc, char *argv[])
                 s_ack.seqNr = expectedPacket - 1;
                 strcpy(s_ack.ack, ACKNOWLEDGEMENT);
                 s_ack.ackChecksum = calculatedChecksum;
-                if ((send(newsockfd, (unsigned char *)&s_ack, sizeof(s_ack), 0)) != sizeof(s_ack))
+                int sendlen = sizeof(struct acknowledgement);
+                if ((sendto(sockfd, (unsigned char *)&s_ack, sendlen, 0, (struct sockaddr *)&caddr, sizeof(caddr))) != sendlen)
                 {
                     // Error sending acknowledgement. Break.
                     printf("Error Sending Acknowledgment. Error Code: %d\n", WSAGetLastError());
@@ -222,12 +243,12 @@ int main(int argc, char *argv[])
                 }
             }
         }
-    } while (recvlen != 0);
+    } while (TRUE);
 
     // Close the output file and the UDP socket; clean up
-    printf("Connection has been shut down. Saving and exiting.\n");
+    printf("No new transmission received after %d seconds, assuming EOF was reached.\n",WAITTIME);
+    puts("Saving and exiting...");
     fclose(outfile);
-    closesocket(newsockfd);
     closesocket(sockfd);
     WSACleanup();
 
