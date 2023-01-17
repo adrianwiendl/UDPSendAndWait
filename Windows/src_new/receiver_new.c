@@ -20,7 +20,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Usage: %s <output file> <port>\n", argv[0]);
         exit(1);
     }
-
+    puts("============SAW-Protokoll auf Basis von UDP-Sockets============");
+    puts("Beleg im Modul I160: RN/KS im WS2022/23 an der HTW Dresden");
+    puts("Martin Dittrich, Michael Novak, Benjamin Kunath, Adrian Wiendl");
+    puts("===============================================================");
     WSADATA wsaData;
     // Initialize the socket API with the version of the
     // Winsock specification that we want to use
@@ -81,7 +84,7 @@ int main(int argc, char *argv[])
         perror("Error binding socket.");
         return (-1);
     }
-    printf("Server is ready to receive.\n");
+
     // Open the output file for writing
     FILE *outfile = fopen(output_file, "w");
     if (outfile == NULL)
@@ -96,7 +99,7 @@ int main(int argc, char *argv[])
     clielen = sizeof(caddr);
 
     FD_SET(sockfd, &fds);
-
+    puts("Server is ready to receive.\n");
     do // Receives data as long as sender has not shut down.
     {
         // Set socket to non-blocking mode
@@ -147,11 +150,13 @@ int main(int argc, char *argv[])
         // Successfully received data
         else if (recvlen != 0)
         {
+            totalPacketCount++;
             // Print status
-            printf("Received packet [%d] with data [\"%s\"] and checksum [%d].\n",
+            printf("Received sequence-no. [%d] with data [\"%s\"] and checksum [%d] in packet [%d].\n",
                    receivedPacket.seqNr,
                    packetData,
-                   receivedPacket.checksum);
+                   receivedPacket.checksum,
+                   totalPacketCount);
 
             // Calculate checksum
             int calculatedChecksum = generateChecksum(receivedPacket.textData, strlen(receivedPacket.textData));
@@ -240,7 +245,8 @@ int main(int argc, char *argv[])
     } while (TRUE);
 
     // Close the output file and the UDP socket; clean up
-    printf("No new transmission received after %d seconds... Saving and exiting.\n",WAITTIME);
+    printf("No new transmission received after %d seconds, assuming EOF was reached.\n",WAITTIME);
+    puts("Saving and exiting...");
     fclose(outfile);
     closesocket(sockfd);
     WSACleanup();
