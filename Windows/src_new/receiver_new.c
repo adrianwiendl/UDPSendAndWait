@@ -9,6 +9,7 @@
 #include "checksum.h"
 #include "structs.h"
 #include "sim_errors.h"
+#include "arguments.h"
 
 #define WAITTIME 5
 
@@ -30,7 +31,7 @@ int main(int argc, char *argv[])
         perror("Error initializing the socket API.");
         return (-1);
     }
-    
+
     // Defines:
     // Variables for sequencing
     int currentPacket = 0;

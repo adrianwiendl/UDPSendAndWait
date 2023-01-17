@@ -11,6 +11,7 @@
 #include "structs.h"
 #include "checksum.h"
 #include "sim_errors.h"
+#include "arguments.h"
 
 #define WAITTIME 5 // Seconds to wait for acknowledgement
 #define MAXRETRIES 6
@@ -18,10 +19,31 @@
 int main(int argc, char *argv[])
 {
     // Check parameter count
-    if (argc != 4) // Incorrect program call
+    if (argc < 4 || argc > 7) // Incorrect program call
     {
-        fprintf(stderr, "Usage: %s <input file> <port> <IPv6 address>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <input file> <port> <IPv6 address> <error=packetnumber>\n", argv[0]);
         exit(1);
+    }
+
+    if (argc > 4) // Program call with error arguments
+    {
+        char *e1 = argv[4];
+        char *e2 = argv[5];
+        char *e3 = argv[6];
+
+        if(argc < 6)
+        {
+          e2 = "-l=0";
+        }
+
+       if(argc < 7)
+       {
+        e3 = "-l=0";
+       }
+
+
+        menu(e1, e2, e3);
+
     }
 
     WSADATA wsaData;
@@ -163,7 +185,7 @@ int main(int argc, char *argv[])
             closesocket(sockfd);
             WSACleanup();
             return (-1);
-        } 
+        }
         // Sending successful
 
         // Print line + checksum sent

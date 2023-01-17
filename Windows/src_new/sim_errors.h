@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <windows.h>
 
-int seqRetries = 0;
-int csmRetries = 0;
-int ackRetries = 0;
+int seqRetries = 1;
+int csmRetries = 1;
+int ackRetries = 1;
+//int MissingAckPack =-1;
 
 int provokeSeqError(int currentPacket, int packetToSkip) // SENDER
 {
@@ -39,16 +40,16 @@ int provokeMissingAck(int seqNr, int seqNrToSkip) // RECEIVER
     {
         printf("Forcing missing acknowledgement on packet %d.\n", seqNrToSkip);
         ackRetries++;
-        //Sleep(6000); // longer than TIMEOUT (5s)
+        // longer than TIMEOUT (5s)
         /* wait 5 seconds */
         time(&start);
         do
             time(&end);
         while (difftime(end, start) <= 5);
-        
+
         return 0;
-        //return seqNr++;
+
     }
     return 1;
-    //return seqNr;
+
 }
