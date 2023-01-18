@@ -2,25 +2,17 @@
 #include <windows.h>
 #include <string.h>
 
-// int seqRetries = 1;
-// int csmRetries = 1;
-// int ackRetries = 1;
+//#include "sim_errors.h"
+
 int MissingAckPack =-1;
 int SeqErrorPack = -1;
 int CsmErrorPack = -1;
 
 int menuSender(char* s1, char* s2)//SENDER function to trigger errors
 {
-    //a= ack, c= checksum, s=sequenz
-
     //combine arguments to one string
-
-puts(s1);
-puts(s2);
     char errorstr[30];
     sprintf(errorstr, "%s=%s", s1, s2);
-
-printf("TEST OUTPUT errorstr: %s\n", errorstr);
 
     //split string into 4 array entries
     int j = 0;
@@ -44,21 +36,22 @@ printf("TEST OUTPUT errorstr: %s\n", errorstr);
         case 'c':
             csmRetries = 0;
             CsmErrorPack = atoi(arrayS[1]);
-    puts("casec");
             break;
         case 's':
             seqRetries = 0;
             SeqErrorPack = atoi(arrayS[1]);
-    puts("cases");
-            break;
-        case 'l':
-    puts("casel1");
             break;
         default:
-    puts("def");
-            printf("Error wrong argument. -%s is no known argument\n", arrayS[0]); //TODO help message
-            return -1;
+            printf("Wrong program call. -%s is no known argument.\n", arrayS[0]); //Wrong program call: output help and exit
+            printf("Use -c=[Packetnumber] to Forcibly falsify checksum\n");
+            printf("Use -s=[Packetnumber] to Forcibly skip packet\n");
+            exit(1);
         }
+    }
+    else
+    {
+        printf("Wrong Program call use integer value > 0 as Packetnumber \n");
+        exit(1);
     }
 
     if(atoi(arrayS[3]) != 0) //test for integer
@@ -68,28 +61,26 @@ printf("TEST OUTPUT errorstr: %s\n", errorstr);
 
         switch(*argument2)
         {
-        case 'a':
-            ackRetries = 0;
-    puts("casea2");
-            break;
         case 'c':
             csmRetries = 0;
             CsmErrorPack = atoi(arrayS[3]);
-    puts("casec2");
             break;
         case 's':
             seqRetries = 0;
             SeqErrorPack = atoi(arrayS[3]);
-    puts("cases2");
             break;
         case 'l':
-    puts("casel2");
             break;
         default:
-    puts("def2");
-            printf("Error wrong argument. -%s is no known argument\n", arrayS[2]); //TODO help message
-            return -1;
+            printf("Wrong program call. -%s is no known argument.\n", arrayS[0]); //Wrong program call: output help and exit
+            printf("Use -c=[Packetnumber] to Forcibly falsify checksum\n");
+            printf("Use -s=[Packetnumber] to Forcibly skip packet\n");
+            exit(1);
         }
+    }
+    else
+    {
+        printf("Wrong Program call use integer value > 0 as Packetnumber \n");
     }
 
     return 0;
@@ -97,6 +88,7 @@ printf("TEST OUTPUT errorstr: %s\n", errorstr);
 
 int menuReceiver(char* r1)//Receiver Function to Trigger errors
 {
+    int successR = 0;
     int l = 0;
     char *partR = strtok (r1, "=, -");
     char *arrayR[2] = {NULL, NULL};
@@ -106,11 +98,28 @@ int menuReceiver(char* r1)//Receiver Function to Trigger errors
         arrayR[l++] = partR;
         partR = strtok (NULL, "=, -");
     }
+    
+    char *argrec;
+    argrec = arrayR[0];
 
-    if(arrayR[0] = 'a' && atoi(arrayR[1]) != 0)
+    if(*argrec == 'a')
     {
-        ackRetries = 0;
-        MissingAckPack = atoi(arrayR[1]);
+        if(arrayR[1] != NULL)
+        {
+            if(atoi(arrayR[1]) != 0)
+            {
+                ackRetries = 0;
+                MissingAckPack = atoi(arrayR[1]);
+                successR++;
+            }
+        }
+    }
+    
+    if(successR == 0)
+    {
+        printf("Wrong program call. Use -a=[Packetnumber] to trigger a Missing Acknowledgement\n");
+        printf("[Packetnumber] has to be an Integer value > 0\n");
+        exit(1);
     }
     return 0;
 }

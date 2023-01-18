@@ -9,6 +9,7 @@
 #include "checksum.h"
 #include "structs.h"
 #include "sim_errors.h"
+#include "arguments.h"
 
 // #define WAITTIME 5
 //  Defines:
@@ -29,11 +30,19 @@ struct sockaddr_in6 saddr, caddr;
 int main(int argc, char *argv[])
 {
     // Check correct program call
-    if (argc != 3)
+    if (argc < 3 || argc > 4)
     {
-        fprintf(stderr, "Usage: %s <output file> <port>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <output file> <port> <error=[packetnumber]>\n", argv[0]);
         exit(1);
     }
+
+    // Program call with argument
+    if(argc == 4)
+    {
+        char* r1 = argv[3];
+        menuReceiver(r1);
+    }
+
     puts("============SAW-Protokoll auf Basis von UDP-Sockets============");
     puts("Beleg im Modul I160: RN/KS im WS2022/23 an der HTW Dresden");
     puts("Martin Dittrich, Michael Novak, Benjamin Kunath, Adrian Wiendl");
@@ -165,7 +174,7 @@ int main(int argc, char *argv[])
             // Acknowledgement prepared according to received packet
             //--> send acknowledgement (s_ack)
             // Unless error case of missing acknowledgement is set and active
-            if (provokeMissingAck(s_ack.seqNr, 8) != 0) // Provoke missing acknowledgement on 8th packet
+            if (provokeMissingAck(s_ack.seqNr, MissingAckPack) != 0) // Provoke missing acknowledgement on chosen packet
             {
                 if (sendToClient(sockfd, s_ack, caddr) != 0)
                 {

@@ -10,6 +10,7 @@
 #include "structs.h"
 #include "checksum.h"
 #include "sim_errors.h"
+#include "arguments.h"
 
 //#define WAITTIME 5 // Seconds to wait for acknowledgement
 #define MAXRETRIES 6
@@ -26,10 +27,24 @@ struct fd_set fds;
 int main(int argc, char *argv[])
 {
     // Check parameter count
-    if (argc != 4) // Incorrect program call
+    if (argc < 4 || argc > 6) // Incorrect program call
     {
-        fprintf(stderr, "Usage: %s <input file> <port> <IPv6 address>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <input file> <port> <IPv6 address> <error=[packetnumber]> <error=[packetnumber]>\n", argv[0]);
         exit(1);
+    }
+
+    if (argc > 4) // Program call with error arguments
+    {
+        char *e1 = argv[4];
+        char *e2 = argv[5];
+
+        if(argc < 6)
+        {
+          e2 = "-l=1";
+        }
+
+        menuSender(e1, e2);
+
     }
 
     puts("============SAW-Protokoll auf Basis von UDP-Sockets============");
@@ -140,8 +155,8 @@ int main(int argc, char *argv[])
     {
         printf("===============Packet [%d]===============\n",totalPacketCount);
         
-        // Provoke erroneous sequencing on 5th packet
-        currentPacket = provokeSeqError(currentPacket, 3); // (current, packet to falsify)
+        // Provoke erroneous sequencing on chosen packet
+        currentPacket = provokeSeqError(currentPacket, SeqErrorPack); // (current, packet to falsify)
         
         // Remove trailing newline character for better diagnosis output
         strcpy(packetData, lines[currentPacket]);
@@ -240,7 +255,7 @@ int main(int argc, char *argv[])
 int sendToServer(int sockfd, char* textToSend, int packetNumber, struct sockaddr_in6 dataOfServer)
 {
     struct packet packetToSend;
-    checksum = provokeChecksumError(packetNumber, generateChecksum(textToSend, strlen(textToSend)), 12);
+    checksum = provokeChecksumError(packetNumber, generateChecksum(textToSend, strlen(textToSend)), CsmErrorPack); //checksum error on chosen packet
     //Fill packet to be sent to Server
     strcpy(packetToSend.textData,textToSend);
     packetToSend.checksum = checksum;

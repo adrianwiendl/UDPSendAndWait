@@ -179,8 +179,8 @@ int main(int argc, char *argv[])
                     s_ack.ackChecksum = calculatedChecksum;
                     int sendlen = sizeof(struct acknowledgement);
 
-                    // Provoke missing acknowledgement on 8th packet
-                    printf("Missing ack pack test output: %d\n", MissingAckPack);
+                    // Provoke missing acknowledgement on chosen packet
+printf("Missing ack pack test output: %d\n", MissingAckPack);
                     if (provokeMissingAck(s_ack.seqNr, MissingAckPack) != 0)
                     {
                         if ((sendto(sockfd, (unsigned char *)&s_ack, sendlen, 0, (struct sockaddr *)&caddr, sizeof(caddr))) != sendlen) // Sending acknowledgement failed
