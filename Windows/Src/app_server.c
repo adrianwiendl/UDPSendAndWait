@@ -13,15 +13,10 @@
 #include "defines.h"
 
 
-int currentPacket = 0;
-int expectedPacket = 0;
-int totalPacketCount = 0;
 struct timeval timeout;
 struct fd_set fds;
 struct packet receivedPacket;
 int sockfd;
-int clielen;
-char recvbuf[BUFFERSIZE];
 struct sockaddr_in6 saddr, caddr;
 
 int main(int argc, char *argv[])
@@ -29,8 +24,8 @@ int main(int argc, char *argv[])
     // Check correct program call
     if (argc < 3 || argc > 4)
     {
-        fprintf(stderr, "Usage: %s <output file> <port> <error=[packetnumber]>\n", argv[0]);
-        exit(1);
+        fprintf(stderr, "Usage: %s <output file> <port> <error=[sequence-no]>\n", argv[0]);
+        exit(EXIT_FAILURE);
     }
 
     // Program call with argument
@@ -54,6 +49,9 @@ int main(int argc, char *argv[])
         perror("Error initializing the socket API.");
         return (-1);
     }
+
+    int expectedPacket = 0;
+    int totalPacketCount = 0;
 
     unsigned short port = atoi(argv[2]);
     char *output_file = argv[1];
@@ -98,7 +96,6 @@ int main(int argc, char *argv[])
         return (-1);
     }
 
-    clielen = sizeof(caddr);
 
     FD_SET(sockfd, &fds);
     puts("Server is ready to receive...\n");
@@ -136,7 +133,7 @@ int main(int argc, char *argv[])
                 printf("Received checksum [%d]. Does not match calculated checksum [%d]. Awaiting resend.\n",
                        receivedPacket.checksum,
                        calculatedChecksum);
-                s_ack.seqNr = expectedPacket;
+                //s_ack.seqNr = expectedPacket;
             }
             else if (receivedPacket.seqNr != expectedPacket)
             {
@@ -145,7 +142,7 @@ int main(int argc, char *argv[])
                        expectedPacket);
             }
             // Check if error case of missing acknowledgement is set and active
-            else if (provokeMissingAck(s_ack.seqNr, MissingAckPack) != 0) // Provoke missing acknowledgement on chosen packet
+            else if (provokeMissingAck(expectedPacket, MissingAckPack) != 0) // Provoke missing acknowledgement on chosen packet
             { 
                 // Correct checksum
                 // Packet as expected
@@ -223,7 +220,7 @@ int receiveFromClient(int sockfd, struct sockaddr_in6 dataOfClient)
     if (res > 0) // Receiving something
     {
         printf("Receiving...\n");
-        int size = sizeof(caddr);
+        int size = sizeof(struct sockaddr_in6);
         recvlen = recvfrom(sockfd, (unsigned char *)&receivedPacket, sizeof(struct packet), 0, (struct sockaddr *)&caddr, &size); // Receive data
     }
     else if (res == 0)

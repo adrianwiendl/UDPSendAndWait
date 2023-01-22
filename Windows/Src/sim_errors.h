@@ -35,20 +35,12 @@ int provokeChecksumError(int currentPacket, int checksum, int packetToFalsify) /
 
 int provokeMissingAck(int seqNr, int seqNrToSkip) // RECEIVER
 {
-    time_t start, end;
     if (seqNr == seqNrToSkip && ackRetries < 1)
     {
         printf("Forcing missing acknowledgement on packet with seq-nr [%d].\n\n", seqNrToSkip);
         ackRetries++;
-        // longer than TIMEOUT (5s)
-        /* wait 5 seconds */
-        time(&start);
-        do
-            time(&end);
-        while (difftime(end, start) <= 5);
 
         return 0;
-
     }
     return 1;
 

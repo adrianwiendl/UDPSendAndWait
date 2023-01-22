@@ -14,6 +14,7 @@
 #include "defines.h"
 
 /*
+Create datatype boolean because C does not natively support it
 Copied from Andreas Bonini on Stackoverflow:
 https://stackoverflow.com/a/1921557 
 */
@@ -21,10 +22,8 @@ typedef int bool;
 #define TRUE 1
 #define FALSE 0
 
-int currentPacket = 0;
-int totalPacketCount = 0;
-int packetRetries = 0;
-int totalLines = 0;
+
+int currentSeqNr = 0;
 long checksum = 0;
 
 struct timeval timeout;
@@ -36,7 +35,7 @@ int main(int argc, char *argv[])
     if (argc < 4 || argc > 6) // Incorrect program call
     {
         fprintf(stderr, "Usage: %s <input file> <port> <IPv6 address> <error=[sequence-no]> <error=[sequence-no]>\n", argv[0]);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (argc > 4) // Program call with error arguments
@@ -68,7 +67,9 @@ int main(int argc, char *argv[])
     }
     //
     int sockfd;
-
+    int totalPacketCount = 0;
+    int totalLines = 0;
+    int packetRetries = 0;
 
     // Parse passed command-line arguemnts
     char *input_file = argv[1];
@@ -124,7 +125,7 @@ int main(int argc, char *argv[])
 
     // Cache input file into lines-array for easier access 
     int i = 0;
-    while (fgets(lines[i], 512, infile))
+    while (fgets(lines[i], MAXCOLS, infile))
     {
         i++;
     } // Read file line by line and store each line in the array
@@ -140,17 +141,17 @@ int main(int argc, char *argv[])
         printf("===============Packet [%d]===============\n",totalPacketCount);
         
         // Provoke erroneous sequencing on chosen packet
-        currentPacket = provokeSeqError(currentPacket, SeqErrorPack); // (current, packet to falsify)
+        currentSeqNr = provokeSeqError(currentSeqNr, SeqErrorPack); // (current, packet to falsify)
         
         // Remove trailing newline character for better diagnosis output
-        strcpy(packetData, lines[currentPacket]);
+        strcpy(packetData, lines[currentSeqNr]);
         packetData[strcspn(packetData, "\n")] = 0;
         
         //Build packet and send to Server
-        if(sendToServer(sockfd, &lines[currentPacket], currentPacket, saddr) != 0)
+        if(sendToServer(sockfd, &lines[currentSeqNr], currentSeqNr, saddr) != 0)
         {
             //Error while sending to Server. Exits the program with error.
-            printf("Error sending packet [%d]. Error Code: [%d].", currentPacket, WSAGetLastError());
+            printf("Error sending packet [%d]. Error Code: [%d].", currentSeqNr, WSAGetLastError());
             closesocket(sockfd);
             WSACleanup();
             return (-1);       
@@ -161,7 +162,7 @@ int main(int argc, char *argv[])
             // Print line + checksum sent
             // Increase total amount of packets sent by 1
             printf("Sent sequence-no. [%d] with data [\"%s\"] and checksum [%ld] in packet [%d].\n", 
-                                                currentPacket, 
+                                                currentSeqNr, 
                                                 packetData, 
                                                 checksum, 
                                                 totalPacketCount);
@@ -177,21 +178,25 @@ int main(int argc, char *argv[])
         {
             switch (receiveFromServer(sockfd,saddr))
             {
-            case RETURN_EOF:
-                //EOF has been reached. End transmission
-                continueSending = FALSE;
-                break;
             case RETURN_OK:
                 //Server received and acknowledged correct packet. 
                 //Continue sending file at next line
+                if (currentSeqNr+1 >= totalLines) // check if EOF (currentPacket == i) reached
+                {
+                    // EOF has been reached. End transmission and proceed to exit
+                    continueSending = FALSE;
+                    break;
+                }
+                // EOF not yet reached; continue cycling through the file
                 printf("Received acknowledgement. Sending next packet...\n\n");
                 packetRetries = 0;
-                currentPacket++;
+                currentSeqNr++;
                 resentCurrentPacket = FALSE;
                 break;
             case RETURN_MISSINGACK:
                 //Server did not acknowledge correct packet in time.
                 //Resending down from current packet until correct packet is sent
+                printf("Did not receive matching acknowledgement in time. Resending last packet ([%d])...\n\n", currentSeqNr);
                 if(resentCurrentPacket == FALSE)
                 {
                     resentCurrentPacket = TRUE;
@@ -199,11 +204,11 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    currentPacket--;
-                    if(currentPacket < 0)
+                    currentSeqNr--;
+                    if(currentSeqNr < 0)
                     {
                         //Make sure we don't send undefined data
-                        currentPacket = 0;
+                        currentSeqNr = 0;
                     }
                     packetRetries++;
                 }
@@ -270,6 +275,7 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
 {
     //Struct to store the received acknowledgement
     struct acknowledgement acknowledgementReceived;
+
     int res;
     do
     {
@@ -300,24 +306,18 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
                     // received checksum doesn't match server-calculated
                     continue;
                 }
-                else if (acknowledgementReceived.seqNr != currentPacket)
+                else if (acknowledgementReceived.seqNr != currentSeqNr)
                 {
                     // Incorrect acknowledgement; resend last packet
                     //currentPacket = acknowledgementReceived.seqNr+1;
                     //Server acknowledged incorrect sequence number.
                     //Wait if correct acknowledgement will arrive within WAITTIME seconds, else resend expected packet.
-                    printf("Received acknowledgement for unexpected sequence number (expected [%d]).\nWaiting %d seconds for correct acknowledgement...\n\n", currentPacket,WAITTIME);
+                    printf("Received acknowledgement for unexpected sequence number (expected [%d]).\nWaiting %d seconds for correct acknowledgement...\n\n", currentSeqNr,WAITTIME);
                     continue;
                 }
                 else  
                 {
                     // Received correct acknowledgement (acknowledgementReceived.seqNr == currentPacket); proceed to send next packet or end transmission if EOF reached
-                    if (currentPacket+1 >= totalLines) // check if EOF (currentPacket == i) reached
-                    {
-                        // EOF reached. Program will exit properly.
-                        return RETURN_EOF;
-                    }
-                    // EOF not yet reached; continue cycling through the file
                     return RETURN_OK; 
                 }
             }
@@ -327,7 +327,7 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
     {
         //No incoming packet after WAITTIME --> no acknowledgement --> resend last packet
         FD_SET(sockfd, &fds);
-        printf("Did not receive matching acknowledgement in time. Resending last packet ([%d])...\n\n", currentPacket);
+       
         return RETURN_MISSINGACK;        
     }
     else
