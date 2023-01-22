@@ -6,7 +6,7 @@ int MissingAckPack =-1;
 int SeqErrorPack = -1;
 int CsmErrorPack = -1;
 
-int menuSender(char* s1, char* s2)//Client function to trigger errors
+int clientHandleArguments(char* s1, char* s2)//Client function to trigger errors
 {
     //combine arguments to one string
     char errorstr[30];
@@ -91,7 +91,7 @@ int menuSender(char* s1, char* s2)//Client function to trigger errors
     return 0;
 }
 
-int menuReceiver(char* r1)//Server Function to Trigger errors
+int serverHandleArguments(char* r1)//Server Function to Trigger errors
 {
     int successS = 0;
 

@@ -5,7 +5,6 @@
 int seqRetries = 1;
 int csmRetries = 1;
 int ackRetries = 1;
-//int MissingAckPack =-1;
 
 int provokeSeqError(int currentPacket, int packetToSkip) // SENDER
 {

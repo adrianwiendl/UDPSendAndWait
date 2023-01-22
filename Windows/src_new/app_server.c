@@ -12,20 +12,17 @@
 #include "arguments.h"
 #include "defines.h"
 
-//  Defines:
-//  Variables for sequencing
+
 int currentPacket = 0;
 int expectedPacket = 0;
 int totalPacketCount = 0;
 struct timeval timeout;
 struct fd_set fds;
-        struct packet receivedPacket;
+struct packet receivedPacket;
 int sockfd;
-int clielen, recvlen;
+int clielen;
 char recvbuf[BUFFERSIZE];
 struct sockaddr_in6 saddr, caddr;
-// saddr: everything for server (receiver)
-// caddr: everything for client (sender)
 
 int main(int argc, char *argv[])
 {
@@ -40,13 +37,14 @@ int main(int argc, char *argv[])
     if(argc == 4)
     {
         char* r1 = argv[3];
-        menuReceiver(r1);
+        serverHandleArguments(r1);
     }
 
     puts("============SAW-Protokoll auf Basis von UDP-Sockets============");
     puts("Beleg im Modul I160: RN/KS im WS2022/23 an der HTW Dresden");
     puts("Martin Dittrich, Michael Novak, Benjamin Kunath, Adrian Wiendl");
     puts("===============================================================");
+
     WSADATA wsaData;
     // Initialize the socket API with the version of the
     // Winsock specification that we want to use
@@ -154,7 +152,7 @@ int main(int argc, char *argv[])
                 // Prepare acknowledgement
                 printf("Checksum and sequence-no. correct...\n");
                 s_ack.seqNr = expectedPacket;
-                strcpy(s_ack.ack, ACKNOWLEDGEMENT);
+                strcpy(s_ack.ack, ACK_SUCCESS);
                 s_ack.ackChecksum = calculatedChecksum;
                 
                 // Acknowledgement prepared according to received packet
@@ -169,7 +167,7 @@ int main(int argc, char *argv[])
                 else // Acknowledgement sent
                 {
                     printf("Successfully sent acknowledgement \"%s\" of seq-no [%d] with checksum [%d] in packet [%d]\n\n",
-                    ACKNOWLEDGEMENT,
+                    ACK_SUCCESS,
                     s_ack.seqNr,
                     s_ack.ackChecksum,
                     totalPacketCount);
@@ -212,17 +210,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-int checkChecksum(int receivedChecksum, char *text)
-{
-    int calculatedChecksum = generateChecksum(text, strlen(text));
-
-    if (receivedChecksum == calculatedChecksum)
-    {
-        // Checksums match
-        return receivedChecksum;
-    }
-    return calculatedChecksum;
-}
 
 int receiveFromClient(int sockfd, struct sockaddr_in6 dataOfClient)
 {
@@ -275,3 +262,4 @@ int sendToClient(int sockfd, struct acknowledgement ackToSend, struct sockaddr_i
     }
     return 0;
 }
+

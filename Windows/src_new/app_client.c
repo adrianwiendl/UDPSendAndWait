@@ -49,14 +49,14 @@ int main(int argc, char *argv[])
           e2 = "-l=1";
         }
 
-        menuSender(e1, e2);
+        clientHandleArguments(e1, e2);
 
     }
-
     puts("============SAW-Protokoll auf Basis von UDP-Sockets============");
     puts("Beleg im Modul I160: RN/KS im WS2022/23 an der HTW Dresden");
     puts("Martin Dittrich, Michael Novak, Benjamin Kunath, Adrian Wiendl");
     puts("===============================================================");
+
     WSADATA wsaData;
     // Initialize the socket API with the version of the
     // Winsock specification that we want to use
@@ -68,24 +68,14 @@ int main(int argc, char *argv[])
     }
     //
     int sockfd;
-    char sendPacketBuffer[BUFFERSIZE];
+
 
     // Parse passed command-line arguemnts
     char *input_file = argv[1];
     unsigned short port = atoi(argv[2]);
     char *server = argv[3];
 
-    //
-    char recvbuf[BUFFERSIZE];
-
-    //
-    struct packet packetToSend;
-    struct sockaddr_in6 saddr, caddr;
-    // struct timeval timeout;
-    struct acknowledgement recvAck;
-    //
-    char *receivedAcknowledgement;
-
+    struct sockaddr_in6 saddr;
     // Timeout for waiting on acknowledgement
     timeout.tv_sec = WAITTIME;
 
@@ -139,12 +129,7 @@ int main(int argc, char *argv[])
         i++;
     } // Read file line by line and store each line in the array
     totalLines = i;
-    /* Intended functionality outline:
-     * 1.   Send 1st packet
-     * 2.   Wait for acknowledgement (WAITTIME seconds)
-     * 3.1  On positive acknowledgement:     reset timer and send 2nd packet and so on
-     * 3.2  On negative/no acknowledgement:  resend 1st packet, as long as timer has not expired, else abort.
-     * */
+ 
     //Print Confirmation
     printf("Sending file [%s] to IP [%s] on PORT [%d].\n", input_file, inet_ntop(AF_INET6, &saddr.sin6_addr, buf, sizeof(buf)), ntohs(saddr.sin6_port));
     
@@ -193,11 +178,6 @@ int main(int argc, char *argv[])
         {
             switch (receiveFromServer(sockfd,saddr))
             {
-            // case 1:
-            //     //Resend current packet because server couldn't verify checksum
-            //     printf("Server received incorrect checksum. Resending...\n\n");
-            //     packetRetries++;
-            //     break;
             case RETURN_EOF:
                 //EOF has been reached. End transmission
                 continueSending = FALSE;
@@ -317,12 +297,11 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
                 return (-1);
             }
             // Check received acknowledgement for correctness, act accordingly on mismatches
-            if (strcmp(acknowledgementReceived.ack, ACKNOWLEDGEMENT) == 0)
+            if (strcmp(acknowledgementReceived.ack, ACK_SUCCESS) == 0)
             {
                 if (acknowledgementReceived.ackChecksum != checksum) 
                 {
                     // received checksum doesn't match server-calculated
-                    //return RETURN_MISSINGACK;
                     continue;
                 }
                 else if (acknowledgementReceived.seqNr != currentPacket)
@@ -332,7 +311,6 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
                     //Server acknowledged incorrect sequence number.
                     //Wait if correct acknowledgement will arrive within WAITTIME seconds, else resend expected packet.
                     printf("Received acknowledgement for unexpected sequence number (expected [%d]).\nWaiting %d seconds for correct acknowledgement...\n\n", currentPacket,WAITTIME);
-                    //continue;
                     continue;
                 }
                 else  
@@ -364,3 +342,4 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
     
     return (-1);
 }
+

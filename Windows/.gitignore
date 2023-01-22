@@ -1,5 +1,2 @@
 #Ignore object files generated when compiling
 *.obj
-File/out.txt
-/src_new/saw_*
-/.vscode/settings.json
