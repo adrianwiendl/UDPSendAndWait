@@ -10,8 +10,8 @@
 #include "structs.h"
 #include "sim_errors.h"
 #include "arguments.h"
+#include "defines.h"
 
-// #define WAITTIME 5
 //  Defines:
 //  Variables for sequencing
 int currentPacket = 0;
@@ -64,8 +64,6 @@ int main(int argc, char *argv[])
     // Acknowledgement
     struct acknowledgement s_ack;
 
-    // Packet
-    // struct packet receivedPacket;
 
     // Output
     char packetData[BUFFERSIZE];
@@ -108,7 +106,6 @@ int main(int argc, char *argv[])
     puts("Server is ready to receive.\n");
     do // Receives data as long as sender has not shut down.
     {
-
         // Set socket to non-blocking mode
         u_long iMode = 1;
         ioctlsocket(sockfd, FIONBIO, &iMode);
@@ -116,7 +113,6 @@ int main(int argc, char *argv[])
         int recvlen = receiveFromClient(sockfd, caddr);
         if (recvlen > 0)
         {
-            //
             // Successfully received data
             printf("===============Packet [%d]===============\n", totalPacketCount);
 
@@ -133,49 +129,36 @@ int main(int argc, char *argv[])
 
             int calculatedChecksum = generateChecksum(receivedPacket.textData, strlen(receivedPacket.textData));
             printf("Calculated checksum: [%ld].\n", calculatedChecksum);
+            
             if (calculatedChecksum != receivedPacket.checksum)
             {
                 // Incorrect Checksum received.
                 // Requesting resend!
-
+                
                 printf("Received checksum [%d]. Does not match calculated checksum [%d]. Awaiting resend.\n",
                        receivedPacket.checksum,
                        calculatedChecksum);
                 s_ack.seqNr = expectedPacket;
-
-                strcpy(s_ack.ack, ACKNOWLEDGEMENT);
-                s_ack.ackChecksum = calculatedChecksum;
             }
-
             else if (receivedPacket.seqNr != expectedPacket)
             {
-                printf("Received packet with unexpected sequence number [%d]. Expected [%d].\n",
+                printf("Received packet with unexpected sequence number (received [%d], expected [%d]).\n",
                        receivedPacket.seqNr,
                        expectedPacket);
-
-                s_ack.seqNr = expectedPacket - 1;
-                strcpy(s_ack.ack, ACKNOWLEDGEMENT);
-                s_ack.ackChecksum = calculatedChecksum;
             }
-            else
-            {
+            // Check if error case of missing acknowledgement is set and active
+            else if (provokeMissingAck(s_ack.seqNr, MissingAckPack) != 0) // Provoke missing acknowledgement on chosen packet
+            { 
                 // Correct checksum
                 // Packet as expected
+                // Prepare acknowledgement
                 printf("Checksum and sequence-no. correct...\n");
                 s_ack.seqNr = expectedPacket;
                 strcpy(s_ack.ack, ACKNOWLEDGEMENT);
                 s_ack.ackChecksum = calculatedChecksum;
                 
-                // Save received text to file; await next packet
-                fputs(receivedPacket.textData, outfile); 
-
-                expectedPacket++;
-            }
-            // Acknowledgement prepared according to received packet
-            //--> send acknowledgement (s_ack)
-            // Unless error case of missing acknowledgement is set and active
-            if (provokeMissingAck(s_ack.seqNr, MissingAckPack) != 0) // Provoke missing acknowledgement on chosen packet
-            {
+                // Acknowledgement prepared according to received packet
+                //--> send acknowledgement (s_ack)
                 if (sendToClient(sockfd, s_ack, caddr) != 0)
                 {
                     // Error sending acknowledgement. Break.
@@ -191,7 +174,16 @@ int main(int argc, char *argv[])
                     s_ack.ackChecksum,
                     totalPacketCount);
                 }
+                
+                // Save received text to file; await next packet
+                fputs(receivedPacket.textData, outfile); 
+                expectedPacket++;
             }
+            else
+            {
+                // Do not send acknowledgement
+                // Sender will re-send (correct) packet
+            } 
             totalPacketCount++;
         }
         else if (recvlen == 0)
@@ -234,7 +226,6 @@ int checkChecksum(int receivedChecksum, char *text)
 
 int receiveFromClient(int sockfd, struct sockaddr_in6 dataOfClient)
 {
-    // struct packet receivedPacket;
     // Listen on Socket
     listen(sockfd, 5);
     int res = select(sockfd + 1, &fds, NULL, NULL, &timeout); // wait for connection
