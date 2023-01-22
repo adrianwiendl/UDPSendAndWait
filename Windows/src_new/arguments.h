@@ -27,7 +27,7 @@ int menuSender(char* s1, char* s2)//Client function to trigger errors
 
     if(atoi(arrayC[1]) != 0) //test for integer/Sequenznumber
     {
-        char argument1[BUFFERSIZE];         
+        char argument1[BUFFERSIZE];
         strcpy(argument1,arrayC[0]);
 
         switch(*argument1)
@@ -57,7 +57,7 @@ int menuSender(char* s1, char* s2)//Client function to trigger errors
 
     if(atoi(arrayC[3]) != 0) //test for integer/Sequenznumber
     {
-        char argument2[BUFFERSIZE];         
+        char argument2[BUFFERSIZE];
         strcpy(argument2,arrayC[2]);
 
         switch(*argument2)
@@ -107,8 +107,8 @@ int menuReceiver(char* r1)//Server Function to Trigger errors
         arrayS[l++] = partS;
         partS = strtok (NULL, "=, -");
     }
-    
-    char argumentServer[BUFFERSIZE];         
+
+    char argumentServer[BUFFERSIZE];
     strcpy(argumentServer,arrayS[0]);
 
     if(*argumentServer == 'a')//check if correct argument was used
@@ -123,7 +123,7 @@ int menuReceiver(char* r1)//Server Function to Trigger errors
             }
         }
     }
-    
+
     if(successS == 0)
     {
         printf("Wrong program call. Use -a=[Sequenznumber] to trigger a Missing Acknowledgement\n");
