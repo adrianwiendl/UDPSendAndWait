@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
         return (-1);
     }
 
-    char lines[100][512]; // 2-Dimensional-Array for read lines & linenumbers
+    char lines[MAXLINES][MAXCOLS]; // 2-Dimensional-Array for read lines & linenumbers
 
     // Cache input file into lines-array for easier access 
     int i = 0;

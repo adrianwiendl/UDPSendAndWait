@@ -17,7 +17,7 @@ int clientHandleArguments(char* s1, char* s2)//Client function to trigger errors
     https://stackoverflow.com/a/15472429*/
     int j = 0;
     char *partC = strtok (errorstr, "=, -");
-    char *arrayC[4] = {NULL, NULL, NULL, NULL};
+    char *arrayC[4] = {NULL};
 
     while (partC != NULL)
     {
@@ -100,7 +100,7 @@ int serverHandleArguments(char* r1)//Server Function to Trigger errors
     https://stackoverflow.com/a/15472429*/
     int l = 0;
     char *partS = strtok (r1, "=, -");
-    char *arrayS[2] = {NULL, NULL};
+    char *arrayS[2] = {NULL};
 
     while (partS != NULL)
     {
