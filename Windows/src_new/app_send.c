@@ -221,6 +221,11 @@ int main(int argc, char *argv[])
                 else
                 {
                     currentPacket--;
+                    if(currentPacket < 0)
+                    {
+                        //Make sure we don't send undefined data
+                        currentPacket = 0;
+                    }
                     packetRetries++;
                 }
                 break;
