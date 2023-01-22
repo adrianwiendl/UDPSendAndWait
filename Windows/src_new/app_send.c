@@ -11,9 +11,15 @@
 #include "checksum.h"
 #include "sim_errors.h"
 #include "arguments.h"
+#include "defines.h"
 
-//#define WAITTIME 5 // Seconds to wait for acknowledgement
-#define MAXRETRIES 6
+/*
+Copied from Andreas Bonini on Stackoverflow:
+https://stackoverflow.com/a/1921557 
+*/
+typedef int bool;
+#define TRUE 1
+#define FALSE 0
 
 int currentPacket = 0;
 int totalPacketCount = 0;
@@ -60,12 +66,6 @@ int main(int argc, char *argv[])
         printf("Error initializing the socket API. Error Code: %d", WSAGetLastError());
         return (-1);
     }
-
-    // Variables for sequencing
-    //int currentPacket = 0;
-    //int totalPacketCount = 0;
-    //int packetRetries = 0;
-
     //
     int sockfd;
     char sendPacketBuffer[BUFFERSIZE];
@@ -77,8 +77,6 @@ int main(int argc, char *argv[])
 
     //
     char recvbuf[BUFFERSIZE];
-    //int checksum;
-    //int sendlen;
 
     //
     struct packet packetToSend;
@@ -95,7 +93,8 @@ int main(int argc, char *argv[])
     char packetData[BUFFERSIZE];
 
 
-    boolean continueSending = TRUE;
+    bool continueSending = TRUE;
+    bool resentCurrentPacket = FALSE;
     // Open socket
     if ((sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) < 0)
     {
@@ -149,7 +148,7 @@ int main(int argc, char *argv[])
     //Print Confirmation
     printf("Sending file [%s] to IP [%s] on PORT [%d].\n", input_file, inet_ntop(AF_INET6, &saddr.sin6_addr, buf, sizeof(buf)), ntohs(saddr.sin6_port));
     
-    
+
     // Run loop to send
     while (continueSending)
     {
@@ -174,10 +173,14 @@ int main(int argc, char *argv[])
         }
         else
         {
-            //Packet successfully sent to server
+            // Packet successfully sent to server
             // Print line + checksum sent
             // Increase total amount of packets sent by 1
-            printf("Sent sequence-no. [%d] with data [\"%s\"] and checksum [%ld] in packet [%d].\n", currentPacket, packetData, checksum, totalPacketCount);
+            printf("Sent sequence-no. [%d] with data [\"%s\"] and checksum [%ld] in packet [%d].\n", 
+                                                currentPacket, 
+                                                packetData, 
+                                                checksum, 
+                                                totalPacketCount);
             totalPacketCount++;
         }
 
@@ -190,30 +193,38 @@ int main(int argc, char *argv[])
         {
             switch (receiveFromServer(sockfd,saddr))
             {
-            case 1:
-                //Resend current packet because server couldn't verify checksum
-                printf("Server received incorrect checksum. Resending...\n\n");
-                packetRetries++;
-                continue;
-            case 2:
+            // case 1:
+            //     //Resend current packet because server couldn't verify checksum
+            //     printf("Server received incorrect checksum. Resending...\n\n");
+            //     packetRetries++;
+            //     break;
+            case RETURN_EOF:
                 //EOF has been reached. End transmission
                 continueSending = FALSE;
                 break;
-            case 3:
+            case RETURN_OK:
                 //Server received and acknowledged correct packet. 
                 //Continue sending file at next line
                 printf("Received acknowledgement. Sending next packet...\n\n");
                 packetRetries = 0;
                 currentPacket++;
-                break;;
-            case 4:
+                resentCurrentPacket = FALSE;
                 break;
-            case 5:
+            case RETURN_MISSINGACK:
                 //Server did not acknowledge correct packet in time.
-                //Resending server-expecting packet
-                //currentPacket gets set by server acknowledging with its expected packet
-                packetRetries++;
+                //Resending down from current packet until correct packet is sent
+                if(resentCurrentPacket == FALSE)
+                {
+                    resentCurrentPacket = TRUE;
+                    packetRetries++;
+                }
+                else
+                {
+                    currentPacket--;
+                    packetRetries++;
+                }
                 break;
+
             default:
                 //Error receiving
                 printf("Error receiving from Server. Aborting.\n");
@@ -243,6 +254,7 @@ int main(int argc, char *argv[])
     printf("EOF reached.\n");
     printf("Sent [%d] lines of text in [%d] packets.\n",totalLines,totalPacketCount);
     printf("Ending transmission...\n");
+    printf("Shutting down. Goodbye...\n");
     fclose(infile);
     closesocket(sockfd);
     WSACleanup();
@@ -305,15 +317,17 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
                 if (acknowledgementReceived.ackChecksum != checksum) 
                 {
                     // received checksum doesn't match server-calculated
-                    return 1;
+                    //return RETURN_MISSINGACK;
+                    continue;
                 }
                 else if (acknowledgementReceived.seqNr != currentPacket)
                 {
                     // Incorrect acknowledgement; resend last packet
-                    currentPacket = acknowledgementReceived.seqNr+1;
+                    //currentPacket = acknowledgementReceived.seqNr+1;
                     //Server acknowledged incorrect sequence number.
                     //Wait if correct acknowledgement will arrive within WAITTIME seconds, else resend expected packet.
                     printf("Received acknowledgement for unexpected sequence number (expected [%d]).\nWaiting %d seconds for correct acknowledgement...\n\n", currentPacket,WAITTIME);
+                    //continue;
                     continue;
                 }
                 else  
@@ -322,10 +336,10 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
                     if (currentPacket+1 >= totalLines) // check if EOF (currentPacket == i) reached
                     {
                         // EOF reached. Program will exit properly.
-                        return 2;
+                        return RETURN_EOF;
                     }
                     // EOF not yet reached; continue cycling through the file
-                    return 3; 
+                    return RETURN_OK; 
                 }
             }
         }
@@ -335,7 +349,7 @@ int receiveFromServer(int sockfd, struct sockaddr_in6 dataOfServer)
         //No incoming packet after WAITTIME --> no acknowledgement --> resend last packet
         FD_SET(sockfd, &fds);
         printf("Did not receive matching acknowledgement in time. Resending last packet ([%d])...\n\n", currentPacket);
-        return 5;        
+        return RETURN_MISSINGACK;        
     }
     else
     {
