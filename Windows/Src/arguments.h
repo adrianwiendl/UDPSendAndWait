@@ -25,7 +25,7 @@ int clientHandleArguments(char* s1, char* s2)//Client function to trigger errors
         partC = strtok (NULL, "=, -");
     }
 
-    if(atoi(arrayC[1]) != 0) //test for integer/Sequenznumber
+    if(atoi(arrayC[1]) != 0) //test for integer/Sequence-no
     {
         char argument1[BUFFERSIZE];
         strcpy(argument1,arrayC[0]);
@@ -37,25 +37,25 @@ int clientHandleArguments(char* s1, char* s2)//Client function to trigger errors
             csmRetries = 0;
             CsmErrorPack = atoi(arrayC[1]);
             break;
-        //Trigger Sequenzerror
+        //Trigger Sequencerror
         case 's':
             seqRetries = 0;
             SeqErrorPack = atoi(arrayC[1]);
             break;
         default:
             printf("Wrong program call. -%s is no known argument.\n", arrayC[0]); //Wrong program call: output help and exit
-            printf("Use -c=[Sequenznumber] to Forcibly falsify checksum\n");
-            printf("Use -s=[Sequenznumber] to Forcibly skip packet\n");
+            printf("Use -c=[Sequence-no] to Forcibly falsify checksum\n");
+            printf("Use -s=[Sequence-no] to Forcibly skip packet\n");
             exit(EXIT_FAILURE);
         }
     }
     else
     {
-        printf("Wrong Program call use integer value > 0 as Sequenznumber \n");
+        printf("Wrong Program call use integer value > 0 as Sequence-no \n");
         exit(EXIT_FAILURE);
     }
 
-    if(atoi(arrayC[3]) != 0) //test for integer/Sequenznumber
+    if(atoi(arrayC[3]) != 0) //test for integer/Sequence-no
     {
         char argument2[BUFFERSIZE];
         strcpy(argument2,arrayC[2]);
@@ -67,7 +67,7 @@ int clientHandleArguments(char* s1, char* s2)//Client function to trigger errors
             csmRetries = 0;
             CsmErrorPack = atoi(arrayC[3]);
             break;
-        //Trigger Sequenzerror
+        //Trigger Sequencerror
         case 's':
             seqRetries = 0;
             SeqErrorPack = atoi(arrayC[3]);
@@ -77,14 +77,14 @@ int clientHandleArguments(char* s1, char* s2)//Client function to trigger errors
             break;
         default:
             printf("Wrong program call. -%s is no known argument.\n", arrayC[0]); //Wrong program call: output help and exit
-            printf("Use -c=[Sequenznumber] to Forcibly falsify checksum\n");
-            printf("Use -s=[Sequenznumber] to Forcibly skip packet\n");
+            printf("Use -c=[Sequence-no] to Forcibly falsify checksum\n");
+            printf("Use -s=[Sequence-no] to Forcibly skip packet\n");
             exit(EXIT_FAILURE);
         }
     }
     else
     {
-        printf("Wrong Program call use integer value > 0 as Sequenznumber \n");
+        printf("Wrong Program call use integer value > 0 as Sequence-no \n");
         exit(EXIT_FAILURE);
     }
 
@@ -126,8 +126,8 @@ int serverHandleArguments(char* r1)//Server Function to Trigger errors
 
     if(successS == 0)
     {
-        printf("Wrong program call. Use -a=[Sequenznumber] to trigger a Missing Acknowledgement\n");
-        printf("[Sequenznumber] has to be an Integer value > 0\n");
+        printf("Wrong program call. Use -a=[Sequence-no] to trigger a Missing Acknowledgement\n");
+        printf("[Sequence-no] has to be an Integer value > 0\n");
         exit(EXIT_FAILURE);
     }
     return 0;
