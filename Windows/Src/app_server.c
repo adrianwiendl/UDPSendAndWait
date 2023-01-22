@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     clielen = sizeof(caddr);
 
     FD_SET(sockfd, &fds);
-    puts("Server is ready to receive.\n");
+    puts("Server is ready to receive...\n");
     do // Receives data as long as sender has not shut down.
     {
         // Set socket to non-blocking mode

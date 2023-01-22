@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     // Check parameter count
     if (argc < 4 || argc > 6) // Incorrect program call
     {
-        fprintf(stderr, "Usage: %s <input file> <port> <IPv6 address> <error=[packetnumber]> <error=[packetnumber]>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <input file> <port> <IPv6 address> <error=[sequence-no]> <error=[sequence-no]>\n", argv[0]);
         exit(1);
     }
 
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
         // Error initializing Windows Socket API
-        printf("Error initializing the socket API. Error Code: %d", WSAGetLastError());
+        printf("Error initializing the socket API. Error Code: %d\n", WSAGetLastError());
         return (-1);
     }
     //
@@ -129,11 +129,11 @@ int main(int argc, char *argv[])
         i++;
     } // Read file line by line and store each line in the array
     totalLines = i;
- 
+    fclose(infile);
+
     //Print Confirmation
     printf("Sending file [%s] to IP [%s] on PORT [%d].\n", input_file, inet_ntop(AF_INET6, &saddr.sin6_addr, buf, sizeof(buf)), ntohs(saddr.sin6_port));
     
-
     // Run loop to send
     while (continueSending)
     {
@@ -151,7 +151,6 @@ int main(int argc, char *argv[])
         {
             //Error while sending to Server. Exits the program with error.
             printf("Error sending packet [%d]. Error Code: [%d].", currentPacket, WSAGetLastError());
-            fclose(infile);
             closesocket(sockfd);
             WSACleanup();
             return (-1);       
@@ -213,7 +212,6 @@ int main(int argc, char *argv[])
             default:
                 //Error receiving
                 printf("Error receiving from Server. Aborting.\n");
-                fclose(infile);
                 closesocket(sockfd);
                 WSACleanup();
                 return (-1);                
@@ -223,7 +221,6 @@ int main(int argc, char *argv[])
         {
             // Too many retries on one packet. Exits the program with error.
             printf("Too many failed send attempts. Aborting.\n");
-            fclose(infile);
             closesocket(sockfd);
             WSACleanup();
             return (-1);
@@ -240,7 +237,6 @@ int main(int argc, char *argv[])
     printf("Sent [%d] lines of text in [%d] packets.\n",totalLines,totalPacketCount);
     printf("Ending transmission...\n");
     printf("Shutting down. Goodbye...\n");
-    fclose(infile);
     closesocket(sockfd);
     WSACleanup();
 
