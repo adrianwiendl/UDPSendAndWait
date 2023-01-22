@@ -2,124 +2,133 @@
 #include <windows.h>
 #include <string.h>
 
-//#include "sim_errors.h"
-
 int MissingAckPack =-1;
 int SeqErrorPack = -1;
 int CsmErrorPack = -1;
 
-int menuSender(char* s1, char* s2)//SENDER function to trigger errors
+int menuSender(char* s1, char* s2)//Client function to trigger errors
 {
     //combine arguments to one string
     char errorstr[30];
     sprintf(errorstr, "%s=%s", s1, s2);
 
-    //split string into 4 array entries
+    //split string into array entries
+    /*Code copied from rlib on Stackoverflow:
+    https://stackoverflow.com/a/15472429*/
     int j = 0;
-    char *partS = strtok (errorstr, "=, -");
-    char *arrayS[4] = {NULL, NULL, NULL, NULL};
+    char *partC = strtok (errorstr, "=, -");
+    char *arrayC[4] = {NULL, NULL, NULL, NULL};
 
-    while (partS != NULL)
+    while (partC != NULL)
     {
-        arrayS[j++] = partS;
-        partS = strtok (NULL, "=, -");
+        arrayC[j++] = partC;
+        partC = strtok (NULL, "=, -");
     }
 
-    //
-    if(atoi(arrayS[1]) != 0) //test for integer
+    if(atoi(arrayC[1]) != 0) //test for integer/Sequenznumber
     {
-        char *argument1;
-        argument1 = arrayS[0];
+        char argument1[BUFFERSIZE];         
+        strcpy(argument1,arrayC[0]);
 
         switch(*argument1)
         {
+        //Trigger Checksumerror
         case 'c':
             csmRetries = 0;
-            CsmErrorPack = atoi(arrayS[1]);
+            CsmErrorPack = atoi(arrayC[1]);
             break;
+        //Trigger Sequenzerror
         case 's':
             seqRetries = 0;
-            SeqErrorPack = atoi(arrayS[1]);
+            SeqErrorPack = atoi(arrayC[1]);
             break;
         default:
-            printf("Wrong program call. -%s is no known argument.\n", arrayS[0]); //Wrong program call: output help and exit
-            printf("Use -c=[Packetnumber] to Forcibly falsify checksum\n");
-            printf("Use -s=[Packetnumber] to Forcibly skip packet\n");
-            exit(1);
+            printf("Wrong program call. -%s is no known argument.\n", arrayC[0]); //Wrong program call: output help and exit
+            printf("Use -c=[Sequenznumber] to Forcibly falsify checksum\n");
+            printf("Use -s=[Sequenznumber] to Forcibly skip packet\n");
+            exit(EXIT_FAILURE);
         }
     }
     else
     {
-        printf("Wrong Program call use integer value > 0 as Packetnumber \n");
-        exit(1);
+        printf("Wrong Program call use integer value > 0 as Sequenznumber \n");
+        exit(EXIT_FAILURE);
     }
 
-    if(atoi(arrayS[3]) != 0) //test for integer
+    if(atoi(arrayC[3]) != 0) //test for integer/Sequenznumber
     {
-        char *argument2;
-        argument2 = arrayS[2];
+        char argument2[BUFFERSIZE];         
+        strcpy(argument2,arrayC[2]);
 
         switch(*argument2)
         {
+        //Trigger Checksumerror
         case 'c':
             csmRetries = 0;
-            CsmErrorPack = atoi(arrayS[3]);
+            CsmErrorPack = atoi(arrayC[3]);
             break;
+        //Trigger Sequenzerror
         case 's':
             seqRetries = 0;
-            SeqErrorPack = atoi(arrayS[3]);
+            SeqErrorPack = atoi(arrayC[3]);
             break;
+        //Do nothing when no second argument was given
         case 'l':
             break;
         default:
-            printf("Wrong program call. -%s is no known argument.\n", arrayS[0]); //Wrong program call: output help and exit
-            printf("Use -c=[Packetnumber] to Forcibly falsify checksum\n");
-            printf("Use -s=[Packetnumber] to Forcibly skip packet\n");
-            exit(1);
+            printf("Wrong program call. -%s is no known argument.\n", arrayC[0]); //Wrong program call: output help and exit
+            printf("Use -c=[Sequenznumber] to Forcibly falsify checksum\n");
+            printf("Use -s=[Sequenznumber] to Forcibly skip packet\n");
+            exit(EXIT_FAILURE);
         }
     }
     else
     {
-        printf("Wrong Program call use integer value > 0 as Packetnumber \n");
+        printf("Wrong Program call use integer value > 0 as Sequenznumber \n");
+        exit(EXIT_FAILURE);
     }
 
     return 0;
 }
 
-int menuReceiver(char* r1)//Receiver Function to Trigger errors
+int menuReceiver(char* r1)//Server Function to Trigger errors
 {
-    int successR = 0;
-    int l = 0;
-    char *partR = strtok (r1, "=, -");
-    char *arrayR[2] = {NULL, NULL};
+    int successS = 0;
 
-    while (partR != NULL)
+    //split string into array entries
+    /*Code copied from rlib on Stackoverflow:
+    https://stackoverflow.com/a/15472429*/
+    int l = 0;
+    char *partS = strtok (r1, "=, -");
+    char *arrayS[2] = {NULL, NULL};
+
+    while (partS != NULL)
     {
-        arrayR[l++] = partR;
-        partR = strtok (NULL, "=, -");
+        arrayS[l++] = partS;
+        partS = strtok (NULL, "=, -");
     }
     
-    char *argrec;
-    argrec = arrayR[0];
+    char argumentServer[BUFFERSIZE];         
+    strcpy(argumentServer,arrayS[0]);
 
-    if(*argrec == 'a')
+    if(*argumentServer == 'a')//check if correct argument was used
     {
-        if(arrayR[1] != NULL)
+        if(arrayS[1] != NULL)//check if array is not empty, because atoi crashes when empty
         {
-            if(atoi(arrayR[1]) != 0)
+            if(atoi(arrayS[1]) != 0)//check for integer
             {
                 ackRetries = 0;
-                MissingAckPack = atoi(arrayR[1]);
-                successR++;
+                MissingAckPack = atoi(arrayS[1]);
+                successS++;
             }
         }
     }
     
-    if(successR == 0)
+    if(successS == 0)
     {
-        printf("Wrong program call. Use -a=[Packetnumber] to trigger a Missing Acknowledgement\n");
-        printf("[Packetnumber] has to be an Integer value > 0\n");
-        exit(1);
+        printf("Wrong program call. Use -a=[Sequenznumber] to trigger a Missing Acknowledgement\n");
+        printf("[Sequenznumber] has to be an Integer value > 0\n");
+        exit(EXIT_FAILURE);
     }
     return 0;
 }
